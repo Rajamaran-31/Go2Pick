@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../firebase';
 
-export const BASE_URL = 'http://localhost:8000'; // Replace with your computer's local IP if testing on a physical device
+export const BASE_URL = 'https://go2pick.onrender.com'; // Replace with your computer's local IP if testing on a physical device
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,

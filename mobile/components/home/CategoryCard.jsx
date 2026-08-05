@@ -1,15 +1,16 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, borderRadius, fontSize, spacing } from '../../constants/theme';
+import { BASE_URL } from '../../services/api';
 
 const defaultCategoryImages = {
-  'Bakery': 'http://localhost:8000/static/bakery.jpg',
-  'Electronics': 'http://localhost:8000/static/electronics.jpg',
-  'Grocery': 'http://localhost:8000/static/grocery.jpg',
-  'Groceries': 'http://localhost:8000/static/grocery.jpg',
-  'Home': 'http://localhost:8000/static/home.jpg',
-  'Pharmacy': 'http://localhost:8000/static/pharmacy.jpg',
-  'Ready to Eat': 'http://localhost:8000/static/ready_to_eat.jpg'
+  'Bakery': `${BASE_URL}/static/bakery.jpg`,
+  'Electronics': `${BASE_URL}/static/electronics.jpg`,
+  'Grocery': `${BASE_URL}/static/grocery.jpg`,
+  'Groceries': `${BASE_URL}/static/grocery.jpg`,
+  'Home': `${BASE_URL}/static/home.jpg`,
+  'Pharmacy': `${BASE_URL}/static/pharmacy.jpg`,
+  'Ready to Eat': `${BASE_URL}/static/ready_to_eat.jpg`
 };
 
 export default function CategoryCard({ category, onPress, style }) {

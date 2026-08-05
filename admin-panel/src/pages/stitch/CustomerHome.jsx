@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import api, { categoriesAPI } from '../../services/api';
+import api, { categoriesAPI, API_BASE } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getShopTimeDisplay } from '../../utils/timeFormat';
 
 // Default images mapping
 const defaultCategoryImages = {
-  'Bakery': 'http://localhost:8000/static/bakery.jpg',
-  'Electronics': 'http://localhost:8000/static/electronics.jpg',
-  'Grocery': 'http://localhost:8000/static/grocery.jpg',
-  'Groceries': 'http://localhost:8000/static/grocery.jpg',
-  'Home': 'http://localhost:8000/static/home.jpg',
-  'Pharmacy': 'http://localhost:8000/static/pharmacy.jpg',
-  'Ready to Eat': 'http://localhost:8000/static/ready_to_eat.jpg'
+  'Bakery': `${API_BASE}/static/bakery.jpg`,
+  'Electronics': `${API_BASE}/static/electronics.jpg`,
+  'Grocery': `${API_BASE}/static/grocery.jpg`,
+  'Groceries': `${API_BASE}/static/grocery.jpg`,
+  'Home': `${API_BASE}/static/home.jpg`,
+  'Pharmacy': `${API_BASE}/static/pharmacy.jpg`,
+  'Ready to Eat': `${API_BASE}/static/ready_to_eat.jpg`
 };
 
 const getFallbackImage = (category) => {

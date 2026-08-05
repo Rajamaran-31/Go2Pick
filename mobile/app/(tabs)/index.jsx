@@ -248,7 +248,7 @@ export default function Screen() {
         });
 
         // Fetch shops dynamically
-        fetch('http://localhost:8000/api/shops')
+        fetch('https://go2pick.onrender.com/api/shops')
             .then(res => res.json())
             .then(shops => {
                 console.log('DEBUG [Frontend Home] shops API response:', shops);
@@ -289,7 +289,7 @@ export default function Screen() {
                 }
                 
         // Fetch categories dynamically
-        fetch('http://localhost:8000/api/customer/categories')
+        fetch('https://go2pick.onrender.com/api/customer/categories')
             .then(res => res.json())
             .then(categories => {
                 const container = document.getElementById('categories-container');
@@ -305,13 +305,13 @@ export default function Screen() {
                 }
                 
                 const defaultCategoryImages = {
-                    'Bakery': 'http://localhost:8000/static/bakery.jpg',
-                    'Electronics': 'http://localhost:8000/static/electronics.jpg',
-                    'Grocery': 'http://localhost:8000/static/grocery.jpg',
-                    'Groceries': 'http://localhost:8000/static/grocery.jpg',
-                    'Home': 'http://localhost:8000/static/home.jpg',
-                    'Pharmacy': 'http://localhost:8000/static/pharmacy.jpg',
-                    'Ready to Eat': 'http://localhost:8000/static/ready_to_eat.jpg'
+                    'Bakery': 'https://go2pick.onrender.com/static/bakery.jpg',
+                    'Electronics': 'https://go2pick.onrender.com/static/electronics.jpg',
+                    'Grocery': 'https://go2pick.onrender.com/static/grocery.jpg',
+                    'Groceries': 'https://go2pick.onrender.com/static/grocery.jpg',
+                    'Home': 'https://go2pick.onrender.com/static/home.jpg',
+                    'Pharmacy': 'https://go2pick.onrender.com/static/pharmacy.jpg',
+                    'Ready to Eat': 'https://go2pick.onrender.com/static/ready_to_eat.jpg'
                 };
                 
                 categoriesList.forEach(category => {
@@ -332,7 +332,7 @@ export default function Screen() {
             });
 
         // Fetch products dynamically
-        fetch('http://localhost:8000/api/customer/products?limit=4')
+        fetch('https://go2pick.onrender.com/api/customer/products?limit=4')
             .then(res => res.json())
             .then(products => {
                 const container = document.getElementById('popular-products-container');

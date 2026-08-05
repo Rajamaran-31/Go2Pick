@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, useParams } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import api from '../../services/api';
+import api, { API_BASE } from '../../services/api';
 
 export default function ProductDetails() {
   const navigate = useNavigate();
@@ -46,10 +46,10 @@ export default function ProductDetails() {
 <section className="relative w-full aspect-[4/5] md:aspect-video overflow-hidden">
 <div className="flex h-full transition-transform duration-500 ease-out" id="carousel">
 {product.image ? (
-  <img className="w-full h-full object-cover flex-shrink-0" src={product.image.startsWith('http') ? product.image : `http://localhost:8000${product.image}`} alt={product.name} />
+  <img className="w-full h-full object-cover flex-shrink-0" src={product.image.startsWith('http') ? product.image : `${API_BASE}${product.image}`} alt={product.name} />
 ) : product.images && product.images.length > 0 ? (
   product.images.map((img, i) => (
-    <img key={i} className="w-full h-full object-cover flex-shrink-0" src={img.startsWith('http') ? img : `http://localhost:8000${img}`} alt={product.name} />
+    <img key={i} className="w-full h-full object-cover flex-shrink-0" src={img.startsWith('http') ? img : `${API_BASE}${img}`} alt={product.name} />
   ))
 ) : (
   <>

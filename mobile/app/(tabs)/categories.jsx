@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fontSize, spacing, borderRadius, shadows } from '../../constants/theme';
-import { categoryAPI } from '../../services/api';
+import { categoryAPI, BASE_URL } from '../../services/api';
 
 export default function CategoriesScreen() {
   const router = useRouter();
@@ -25,13 +25,13 @@ export default function CategoriesScreen() {
 
   const renderItem = ({ item }) => {
     const defaultCategoryImages = {
-      'Bakery': 'http://localhost:8000/static/bakery.jpg',
-      'Electronics': 'http://localhost:8000/static/electronics.jpg',
-      'Grocery': 'http://localhost:8000/static/grocery.jpg',
-      'Groceries': 'http://localhost:8000/static/grocery.jpg',
-      'Home': 'http://localhost:8000/static/home.jpg',
-      'Pharmacy': 'http://localhost:8000/static/pharmacy.jpg',
-      'Ready to Eat': 'http://localhost:8000/static/ready_to_eat.jpg'
+      'Bakery': `${BASE_URL}/static/bakery.jpg`,
+      'Electronics': `${BASE_URL}/static/electronics.jpg`,
+      'Grocery': `${BASE_URL}/static/grocery.jpg`,
+      'Groceries': `${BASE_URL}/static/grocery.jpg`,
+      'Home': `${BASE_URL}/static/home.jpg`,
+      'Pharmacy': `${BASE_URL}/static/pharmacy.jpg`,
+      'Ready to Eat': `${BASE_URL}/static/ready_to_eat.jpg`
     };
     const imageUrl = item.image || defaultCategoryImages[item.name] || defaultCategoryImages['Grocery'];
     return (

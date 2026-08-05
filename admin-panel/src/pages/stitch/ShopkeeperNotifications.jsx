@@ -92,11 +92,11 @@ export default function ShopkeeperNotifications() {
                   <button 
                     onClick={() => {
                       const userToken = localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token') || localStorage.getItem('token');
-                      fetch(`http://localhost:8000/api/notifications/${n.id}/read`, {
+                      fetch(`https://go2pick.onrender.com/api/notifications/${n.id}/read`, {
                         method: 'POST',
                         headers: { Authorization: `Bearer ${userToken}` }
                       }).then(() => {
-                        return fetch(`http://localhost:8000/api/shopkeeper/enable-dashboard`, {
+                        return fetch(`https://go2pick.onrender.com/api/shopkeeper/enable-dashboard`, {
                           method: 'POST',
                           headers: { Authorization: `Bearer ${userToken}` }
                         });

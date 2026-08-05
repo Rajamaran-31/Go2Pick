@@ -224,7 +224,7 @@ export default function Screen() {
 </div>
 </nav>
 <script>
-        fetch('http://localhost:8000/api/customer/cart')
+        fetch('https://go2pick.onrender.com/api/customer/cart')
             .then(res => res.json())
             .then(cart => {
                 const container = document.getElementById('cart-items-container');

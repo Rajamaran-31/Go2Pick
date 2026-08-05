@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { adminAPI } from '../../services/api';
+import { adminAPI, API_BASE } from '../../services/api';
 
 const defaultCategoryImages = {
-  'Bakery': 'http://localhost:8000/static/bakery.jpg',
-  'Electronics': 'http://localhost:8000/static/electronics.jpg',
-  'Grocery': 'http://localhost:8000/static/grocery.jpg',
-  'Groceries': 'http://localhost:8000/static/grocery.jpg',
-  'Home': 'http://localhost:8000/static/home.jpg',
-  'Pharmacy': 'http://localhost:8000/static/pharmacy.jpg',
-  'Ready to Eat': 'http://localhost:8000/static/ready_to_eat.jpg'
+  'Bakery': `${API_BASE}/static/bakery.jpg`,
+  'Electronics': `${API_BASE}/static/electronics.jpg`,
+  'Grocery': `${API_BASE}/static/grocery.jpg`,
+  'Groceries': `${API_BASE}/static/grocery.jpg`,
+  'Home': `${API_BASE}/static/home.jpg`,
+  'Pharmacy': `${API_BASE}/static/pharmacy.jpg`,
+  'Ready to Eat': `${API_BASE}/static/ready_to_eat.jpg`
 };
 
 export default function PlatformSettings() {
