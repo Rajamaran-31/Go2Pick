@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Go2Pick",
+    "slug": "go2pick",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "go2pick",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.go2pick.app" },
+    "android": { "package": "com.go2pick.app", "adaptiveIcon": { "backgroundColor": "#1B2A4A" } },
+    "web": { "bundler": "metro" },
+    "plugins": ["expo-router", "expo-font", "expo-image-picker"]
+  }
+}

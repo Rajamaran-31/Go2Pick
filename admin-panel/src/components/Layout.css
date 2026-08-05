@@ -1,0 +1,10 @@
+.layout { display: flex; min-height: 100vh; }
+.layout-main { flex: 1; margin-left: 260px; display: flex; flex-direction: column; min-height: 100vh; transition: margin-left 0.3s ease; }
+.layout-content { flex: 1; padding: 24px 32px; }
+.layout-overlay { display: none; }
+
+@media (max-width: 768px) {
+  .layout-main { margin-left: 0; }
+  .layout-content { padding: 16px; }
+  .layout-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 98; }
+}
