@@ -268,7 +268,7 @@ export default function Screen() {
                         const category = shop.category || 'Category';
                         
                         const shopHtml = \`
-                        <div class="flex-shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm border border-border-gray hover:shadow-md transition-shadow cursor-pointer" onclick="window.location.href='/shops/${shop.id}'">
+                        <div class="flex-shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm border border-border-gray hover:shadow-md transition-shadow cursor-pointer" onclick="window.location.href='/shops/\${shop.id}'">
                             <div class="h-40 w-full overflow-hidden">
                                 <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="\${imageUrl}" onerror="this.src='\${fallbackImage}'"/>
                             </div>
