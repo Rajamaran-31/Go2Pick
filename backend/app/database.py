@@ -45,12 +45,22 @@ class Database:
 
     @classmethod
     def connect(cls):
+        import json
         settings = get_settings()
-        creds_path = settings.FIREBASE_CREDENTIALS or settings.FIREBASE_CREDENTIALS_PATH
-        resolved_path = resolve_firebase_credentials(creds_path)
+        creds_config = settings.FIREBASE_CREDENTIALS or settings.FIREBASE_CREDENTIALS_PATH
+        
         try:
             if not firebase_admin._apps:
-                cred = credentials.Certificate(resolved_path)
+                # Check if the credentials config is a raw JSON string (common in production environments like Render/Vercel)
+                if creds_config.strip().startswith('{'):
+                    print("Loading Firebase credentials from raw JSON environment variable...")
+                    cred_dict = json.loads(creds_config)
+                    cred = credentials.Certificate(cred_dict)
+                else:
+                    resolved_path = resolve_firebase_credentials(creds_config)
+                    print(f"Loading Firebase credentials from file: {resolved_path}")
+                    cred = credentials.Certificate(resolved_path)
+                
                 firebase_admin.initialize_app(cred, {
                     'storageBucket': settings.FIREBASE_STORAGE_BUCKET
                 })
@@ -60,7 +70,7 @@ class Database:
             cls.db = None
             print("\n" + "="*80)
             print("CRITICAL ERROR: Firebase Admin SDK could not be initialized.")
-            print(f"Credentials path: {creds_path} (Resolved: {resolved_path})")
+            print(f"Credentials input length: {len(creds_config) if creds_config else 0}")
             print(f"Error details: {str(e)}")
             print("The application will start, but database operations will fail.")
             print("="*80 + "\n")
