@@ -213,52 +213,13 @@ export default function ShopDetails() {
 
   return (
     <>
-      
-
-<nav className="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md shadow-sm h-16 flex items-center justify-between px-md">
-<div className="flex items-center gap-md">
-<button className="p-2 hover:bg-surface-container-high rounded-full transition-colors active:scale-95" onClick={() => navigate(-1)}>
-<span className="material-symbols-outlined text-trust-blue">arrow_back</span>
-</button>
-<h1 className="font-title-md text-title-md text-trust-blue">{shop ? shop.name : "Loading..."}</h1>
-</div>
-<div className="flex items-center gap-sm">
-{shareMessage && (
-  <span className="text-xs text-success-green font-semibold px-2 py-1 bg-green-50 rounded-lg">{shareMessage}</span>
-)}
-<button
-  title="Share this shop"
-  onClick={handleShareShop}
-  className="p-2 hover:bg-surface-container-high rounded-full transition-colors active:scale-95"
->
-  <span className="material-symbols-outlined text-on-surface-variant">share</span>
-</button>
-<button
-  title={isLiked ? 'Remove from favorites' : 'Add to favorites'}
-  onClick={handleToggleFavorite}
-  disabled={likeLoading}
-  className={`p-2 hover:bg-surface-container-high rounded-full transition-colors active:scale-95 ${likeLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
->
-  <span
-    className="material-symbols-outlined"
-    style={{
-      color: isLiked ? '#ef4444' : undefined,
-      fontVariationSettings: isLiked ? "'FILL' 1" : "'FILL' 0",
-      transition: 'color 0.2s, font-variation-settings 0.2s'
-    }}
-  >
-    favorite
-  </span>
-</button>
-</div>
-</nav>
-{isLoading ? (
-  <div className="pt-32 text-center text-on-surface-variant">Loading shop details...</div>
-) : !shop ? (
-  <div className="pt-32 text-center text-on-surface-variant">Shop not found. Go back and select a valid shop.</div>
-) : (
-  <>
-<main className="pt-16 max-w-container-max mx-auto">
+      <div className="py-8 max-w-container-max mx-auto min-h-screen">
+      {isLoading ? (
+        <div className="text-center text-on-surface-variant pt-12">Loading shop details...</div>
+      ) : !shop ? (
+        <div className="text-center text-on-surface-variant pt-12">Shop not found. Go back and select a valid shop.</div>
+      ) : (
+        <div className="px-6">
 
 <div className="relative w-full h-[300px] overflow-hidden">
 <img alt={shop.name} className="shop-cover-image w-full h-full object-cover" src={shop.coverImageUrl || shop.imageUrl || shop.shopImageUrl || defaultShopImage}/>
@@ -471,14 +432,13 @@ export default function ShopDetails() {
               </div>
             )}
           </section>
-</div>
+        </div>
+      </div>
+    )}
+    </div>
 
-</main>
-</>
-)}
-
-<div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-md z-50">
-<Link to="/cart" className="w-full h-14 bg-trust-blue text-on-primary rounded-full shadow-lg flex items-center justify-between px-lg active:scale-95 transition-all" id="view-cart-fab">
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-md z-50">
+        <Link to="/cart" className="w-full h-14 bg-trust-blue text-on-primary rounded-full shadow-lg flex items-center justify-between px-lg active:scale-95 transition-all" id="view-cart-fab">
 <div className="flex items-center gap-md">
 <div className="relative">
 <span className="material-symbols-outlined">shopping_cart</span>

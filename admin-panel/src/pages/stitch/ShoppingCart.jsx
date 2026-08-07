@@ -9,22 +9,7 @@ export default function ShoppingCart() {
 
   return (
     <>
-      
-
-<header className="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface/80 backdrop-blur-md shadow-sm">
-<div className="flex items-center justify-between px-md h-14 w-full">
-<div className="flex items-center gap-md">
-<button onClick={() => navigate(-1)} aria-label="Back" className="transition-colors duration-200 active:scale-95 hover:bg-surface-container-low p-2 rounded-full text-primary dark:text-inverse-primary">
-<span className="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
-</button>
-<h1 className="font-title-md text-title-md text-primary dark:text-inverse-primary">Shopping Cart</h1>
-</div>
-<button onClick={clearCart} aria-label="Clear Cart" className="transition-colors duration-200 active:scale-95 hover:bg-surface-container-low p-2 rounded-full text-primary dark:text-inverse-primary">
-<span className="material-symbols-outlined" data-icon="delete">delete</span>
-</button>
-</div>
-</header>
-<main className="pt-14 pb-48 max-w-container-max mx-auto px-md md:px-lg">
+      <div className="py-8 max-w-container-max mx-auto px-md md:px-lg min-h-screen">
 
 <section className="mt-lg space-y-md">
 
@@ -79,9 +64,9 @@ export default function ShoppingCart() {
 <p className="text-on-surface-variant font-body-md">Pickup in store. Pay directly at the shop when you collect your items.</p>
 </div>
 </section>
-</main>
+</div>
 
-<div className="fixed bottom-14 left-0 w-full p-md bg-surface/90 backdrop-blur-md z-40 border-t border-surface-variant/30 flex flex-col justify-center items-center gap-sm">
+<div className="fixed bottom-0 left-0 w-full p-md bg-surface/90 backdrop-blur-md z-40 border-t border-surface-variant/30 flex flex-col justify-center items-center gap-sm">
 <button onClick={() => navigate('/checkout')} className="w-full max-w-container-max bg-trust-blue hover:bg-primary-container text-on-primary font-title-md py-lg rounded-xl shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-md">
 <span>Proceed to Checkout</span>
 <span className="material-symbols-outlined">arrow_forward</span>

@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { AppProvider, useAppContext } from './context/AppContext';
-import BottomTabBar from './components/BottomTabBar';
 import Layout from './components/Layout';
+import CustomerLayout from './components/CustomerLayout';
 import Login from './pages/Login';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalDashboard from './pages/stitch/GlobalDashboard';
@@ -148,10 +148,9 @@ export default function App() {
           <Route path="/signup" element={<LoginSignup />} />
           <Route path="/admin/login" element={<Login />} />
           
-          {/* Customer / Public Silo */}
-          <Route path="/">
+          {/* Customer / Public Silo - Wrapped in CustomerLayout */}
+          <Route path="/" element={<CustomerLayout />}>
             <Route index element={<CustomerHome />} />
-            <Route path="welcome" element={<WelcomePage />} />
             <Route path="categories" element={<CategoryListing />} />
             <Route path="category/:categoryName" element={<CategoryListing />} />
             <Route path="product/:id" element={<ProductDetails />} />
@@ -160,10 +159,6 @@ export default function App() {
             <Route path="support" element={<HelpSupport />} />
             <Route path="shop-details" element={<ShopDetails />} />
             <Route path="shop/:shopId/reviews" element={<ShopReviews />} />
-            <Route path="shopkeeper/notifications" element={<ShopkeeperNotifications />} />
-            <Route path="admin/notifications" element={<AdminNotifications />} />
-            <Route path="forgot-password" element={<ForgotPassword />} />
-            <Route path="verify-email" element={<EmailVerification />} />
 
             {/* Authenticated Customer Routes */}
             <Route element={<PrivateRoute />}>
@@ -180,6 +175,13 @@ export default function App() {
               <Route path="notifications" element={<NotificationsCenter />} />
             </Route>
           </Route>
+
+          {/* Customer screens that do NOT need header/footer */}
+          <Route path="/welcome" element={<WelcomePage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
+          <Route path="/shopkeeper/notifications" element={<ShopkeeperNotifications />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
 
           {/* Super Admin Silo */}
           <Route path="/admin" element={<AdminRoute />}>
@@ -222,7 +224,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
-      <BottomTabBar />
     </AppProvider>
   );
 }

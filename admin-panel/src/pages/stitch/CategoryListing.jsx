@@ -291,36 +291,7 @@ export default function CategoryListing() {
 
   return (
     <>
-      {/* AppBar Header */}
-      <header className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between px-4 md:px-6 h-16 w-full max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
-            <button 
-              className="material-symbols-outlined text-slate-600 hover:text-trust-blue active:scale-90 transition-transform cursor-pointer" 
-              onClick={() => navigate('/')}
-            >
-              arrow_back
-            </button>
-            <h1 className="text-xl font-extrabold tracking-tight text-trust-blue cursor-pointer" onClick={() => navigate('/')}>
-              Go2Pick
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <button 
-              className="material-symbols-outlined text-slate-600 hover:text-trust-blue relative p-1.5 hover:bg-slate-50 rounded-full cursor-pointer"
-              onClick={() => navigate('/explore')}
-            >
-              search
-            </button>
-            <div className="h-8 w-8 rounded-full overflow-hidden border border-slate-200 cursor-pointer" onClick={() => navigate('/profile')}>
-              <img alt="User" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0a2cxlAd3XgffYKhoD4B6BnLlbMGkRW71EqZAARhJAGaqadZ_Zs-JSxW_71_1DxL0eYYXySawpinxIb7Cz4Qn6IDq02YDlSD6PlUVfZhKnEjY8Xhp3vTjkn0tIrG7Zb8B_gmTvS3n6NjOiS7jJaSMjzveJrpuoG6DyMKHItpE53YW1KEm4L7rvk05Q8cpkCw5dxkqduJdE5DgVqFG9pepsN7GJsEzSOfvKnlj5PTi2H01RzPXKXeIXqO2KQAEfWMN_gQEQNCFT06-"/>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* MAIN CONTAINER */}
-      <main className="pt-24 pb-20 px-6 max-w-7xl mx-auto min-h-screen">
+      <div className="py-8 px-6 max-w-7xl mx-auto min-h-screen">
         
         {/* Navigation Breadcrumb & Title */}
         <section className="mb-8">
@@ -561,7 +532,7 @@ export default function CategoryListing() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* -------------------- RESPONSIVE FILTER MODAL -------------------- */}
       {isFilterOpen && (

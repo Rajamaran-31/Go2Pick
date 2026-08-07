@@ -51,23 +51,7 @@ export default function SearchExplore() {
   }, [searchTerm]);
 
   return (
-    <>
-      
-{/* Top Navigation Bar */}
-<header className="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md shadow-sm">
-<div className="flex justify-between items-center px-lg h-14 w-full">
-<div className="flex items-center gap-base">
-<span className="material-symbols-outlined text-trust-blue cursor-pointer" data-icon="arrow_back" onClick={() => navigate(-1)}>arrow_back</span>
-<h1 className="font-display-lg text-[24px] font-bold text-trust-blue leading-none">Go2Pick</h1>
-</div>
-<div className="flex items-center gap-md">
-<div className="w-8 h-8 rounded-full overflow-hidden border-2 border-surface-container">
-<img alt="User Profile" data-alt="A professional and friendly close-up portrait of a young adult with a warm smile, set against a soft-focus urban park background. The lighting is bright and natural, reflecting a clean and modern lifestyle. The color palette is composed of soft blues, greens, and crisp whites to match a high-trust corporate design aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9tIqLMYW7l-TwqFl-Kh2IkJZSTUSnoGe8Jz7YCUR2o1j5qI_QA5ejdFqMY7lyjS32NewLLUR34UpR3CDW-g8HtGZLITZvZVLuGDn2OyfulCH1rex4gUzrBdNlbKkYvFS6CnXtx6ODkXWhgzlDTLkHyHehT6DzpAFvkvk-yOzC7z94iWP5KJHSAvhOU_E5SitgOSKeqo3pSGXRpxq75TjKGRU8ZKTtcd3es9hHqWp3Bj0-P8Dx7xxlmL3xuqXLy93RtUmX2FRemdgR"/>
-</div>
-</div>
-</div>
-</header>
-<main className="pt-20 pb-24 px-md md:px-lg max-w-container-max mx-auto">
+    <div className="py-8 px-md md:px-lg max-w-container-max mx-auto min-h-screen">
 {/* Search Section */}
 <section className="mb-lg">
 <div className="relative group">
@@ -165,11 +149,6 @@ export default function SearchExplore() {
 ))}
 </div>
 </section>
-</main>
-{/* Bottom Navigation Bar */}
-
-
-
-    </>
+</div>
   );
 }

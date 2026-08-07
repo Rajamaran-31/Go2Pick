@@ -149,26 +149,11 @@ export default function OrderTracking() {
   };
 
   return (
-    <>
-      {/* Top AppBar (Back & Title) */}
-      <header className="fixed top-0 w-full z-50 bg-surface/80 glass-effect shadow-sm">
-        <div className="flex justify-between items-center px-lg h-14 w-full">
-          <div className="flex items-center gap-md">
-            <button className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container-low transition-colors active:scale-95 duration-150" onClick={() => navigate(-1)}>
-              <span className="material-symbols-outlined text-trust-blue" data-icon="arrow_back">arrow_back</span>
-            </button>
-            <h1 className="font-title-md text-title-md text-on-surface">Track Order</h1>
-          </div>
-          <div className="font-label-sm text-label-sm text-on-surface-variant bg-surface-container px-sm py-1 rounded-full">
-            #{displayOrder.pickupCode || displayOrder.pickup_code || (displayOrder.id ? displayOrder.id.substring(displayOrder.id.length - 8) : 'GP-8842')}
-          </div>
-        </div>
-      </header>
-
+    <div className="py-8 px-md max-w-2xl mx-auto min-h-screen">
       {isLoading ? (
-        <div className="pt-32 text-center text-on-surface-variant">Loading tracking details...</div>
+        <div className="text-center text-on-surface-variant pt-12">Loading tracking details...</div>
       ) : (
-        <main className="pt-20 pb-24 px-md max-w-2xl mx-auto space-y-lg">
+        <div className="space-y-lg">
           {/* Live Status Tracker Card */}
           <section className="bg-surface-container-lowest rounded-xl p-lg shadow-sm">
             <div className="flex items-center justify-between mb-xl">
@@ -329,8 +314,8 @@ export default function OrderTracking() {
               </div>
             </div>
           </section>
-        </main>
+        </div>
       )}
-    </>
+    </div>
   );
 }

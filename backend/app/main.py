@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -18,12 +19,19 @@ from app.routers import support as support_router
 
 settings = get_settings()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Database.connect()
+    yield
+    Database.close()
+
 app = FastAPI(
     title=settings.APP_NAME,
     description=settings.APP_DESCRIPTION,
     version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 @app.exception_handler(RequestValidationError)
@@ -41,18 +49,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # ─── CORS Middleware ─────────────────────────────────────────────────────────
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"http://localhost:\d+",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -72,16 +72,7 @@ app.include_router(uploads_router.router, prefix="/api")
 app.include_router(support_router.router, prefix="/api")
 
 
-# ─── Lifecycle Events ────────────────────────────────────────────────────────
-
-@app.on_event("startup")
-async def startup():
-    Database.connect()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    Database.close()
+# ─── Lifecycle Events (migrated to lifespan handler) ───────────────────────
 
 
 # ─── Root & Health Endpoints ──────────────────────────────────────────────────

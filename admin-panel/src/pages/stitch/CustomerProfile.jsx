@@ -37,21 +37,7 @@ export default function CustomerProfile() {
   }, []);
 
   return (
-    <>
-      
-
-<header className="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface/80 backdrop-blur-md shadow-sm">
-<div className="flex items-center justify-between px-md h-14 w-full">
-<button className="text-primary dark:text-inverse-primary hover:opacity-80 transition-opacity active:scale-95 transition-transform cursor-pointer" onClick={() => setIsDrawerOpen(true)}>
-<span className="material-symbols-outlined">menu</span>
-</button>
-<h1 className="font-headline-lg-mobile text-headline-lg-mobile text-primary dark:text-inverse-primary font-bold">Go2Pick</h1>
-<Link to="/profile/settings">
-<span className="material-symbols-outlined">settings</span>
-</Link>
-</div>
-</header>
-<main className="pt-20 px-gutter max-w-container-max mx-auto space-y-lg">
+    <div className="py-8 px-gutter max-w-container-max mx-auto space-y-lg min-h-screen">
 
 <section className="relative">
 <div className="bg-primary rounded-xl overflow-hidden h-32 md:h-48 mb-16 shadow-lg">
@@ -243,29 +229,6 @@ export default function CustomerProfile() {
                 Sign Out
             </button>
 </div>
-</main>
-
-
-
-
-
-
-{isDrawerOpen && (
-  <div className="fixed inset-0 z-[200] flex">
-    <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
-    <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
-      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
-      <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
-      <div className="flex flex-col gap-2">
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">home</span> Home</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/explore'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">explore</span> Explore</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/cart'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">shopping_cart</span> Cart</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/orders'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">receipt_long</span> Orders</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/profile'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">person</span> Profile</button>
-      </div>
-    </div>
-  </div>
-)}
-    </>
+</div>
   );
 }

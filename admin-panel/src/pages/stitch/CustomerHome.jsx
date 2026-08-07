@@ -396,95 +396,7 @@ export default function CustomerHome() {
 
   return (
     <>
-      {/* 2. HEADER SECTION (Responsiveness Fix) */}
-      <header className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between px-3 md:px-6 h-16 w-full max-w-7xl mx-auto">
-          {/* Logo brand */}
-          <div className="flex items-center gap-1.5 cursor-pointer flex-shrink-0" onClick={() => navigate('/')}>
-            <img 
-              alt="Go2Pick Logo" 
-              className="h-8 w-8 md:h-9 md:w-9 object-contain" 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW8TssMjhMMMtqytgYLeGnQZF3hkA7ep4u2Fh0r89LNnVyZUftxu3EoaXuDIsB3owVwzSjrxtdKaU4VyUoER7MUOrIDei0okcpI4iyjt3DEQOREwYqKBwhN91-We4I7I_3czYXRDHmpC4t0fMyFsivK0YLVNkXGTt1p5kLz73lzoGHOZL_ONJYpU5FrZYJ6WT7LxwAFveXsN9_fLJVT3hs3LLx-9sI5GT7bVkzbG4ZLPrBpMpjSzaCTG_dVHhjxj-H2W5Y3-pkAVmO"
-            />
-            <span className="text-lg md:text-2xl font-bold tracking-tight text-trust-blue">Go2Pick</span>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-4">
-            {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center space-x-6 mr-4">
-              <Link className="text-slate-600 hover:text-trust-blue hover:bg-slate-50 transition-all font-semibold rounded-lg px-3 py-2 text-sm" to="/">Home</Link>
-              <Link className="text-slate-600 hover:text-trust-blue hover:bg-slate-50 transition-all font-semibold rounded-lg px-3 py-2 text-sm" to="/explore">Explore</Link>
-              <Link className="text-slate-600 hover:text-trust-blue hover:bg-slate-50 transition-all font-semibold rounded-lg px-3 py-2 text-sm" to="/cart">Cart</Link>
-            </div>
-
-            {/* Responsive Switch Mode Button */}
-            {(user?.isShopkeeper === true || user?.shopkeeperStatus === 'approved' || user?.activeShopId || user?.role === 'shopkeeper') && (
-              <button 
-                disabled={isSwitching}
-                onClick={async () => {
-                  try {
-                    setIsSwitching(true);
-                    const freshUser = await refreshUser();
-                    if (freshUser?.shopkeeperDashboardEnabled !== true) {
-                      try {
-                        await api.post('/api/shopkeeper/enable-dashboard');
-                      } catch (dashboardErr) {
-                        console.warn("Enable dashboard error", dashboardErr);
-                      }
-                    }
-                    await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" });
-                    localStorage.setItem('go2pick_mode', 'shopkeeper');
-                    if (user) {
-                      setUser({ ...user, activeMode: "shopkeeper", currentMode: "shopkeeper" });
-                    }
-                    await refreshUser();
-                    navigate('/shopkeeper');
-                  } catch (err) {
-                    const msg = err.response?.data?.detail || err.message;
-                    alert("Failed to switch mode: " + msg);
-                    setIsSwitching(false);
-                  }
-                }}
-                className={`px-2 md:px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all bg-marketplace-orange text-white shadow-sm hover:opacity-90 active:scale-95 ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isSwitching ? (
-                  "Switching..."
-                ) : (
-                  <>
-                    <span className="hidden md:inline">Switch to Shopkeeper</span>
-                    <span className="inline md:hidden">Shopkeeper</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Notification Bell */}
-            <div className="active:scale-95 transition-transform cursor-pointer relative p-1.5 hover:bg-slate-50 rounded-full text-trust-blue" onClick={() => navigate('/notifications')}>
-              <span className="material-symbols-outlined text-2xl">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-error-red text-white text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </div>
-
-            {/* Customer Avatar & Name */}
-            <div className="flex items-center gap-1.5 md:gap-2 cursor-pointer border-l pl-2 md:pl-3 border-slate-100" onClick={() => navigate('/profile')}>
-              <span className="hidden sm:inline font-semibold text-xs md:text-sm text-slate-700">{user?.fullName || 'Guest'}</span>
-              <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
-                <img 
-                  className="w-full h-full object-cover" 
-                  alt="Customer Avatar"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0a2cxlAd3XgffYKhoD4B6BnLlbMGkRW71EqZAARhJAGaqadZ_Zs-JSxW_71_1DxL0eYYXySawpinxIb7Cz4Qn6IDq02YDlSD6PlUVfZhKnEjY8Xhp3vTjkn0tIrG7Zb8B_gmTvS3n6NjOiS7jJaSMjzveJrpuoG6DyMKHItpE53YW1KEm4L7rvk05Q8cpkCw5dxkqduJdE5DgVqFG9pepsN7GJsEzSOfvKnlj5PTi2H01RzPXKXeIXqO2KQAEfWMN_gQEQNCFT06-"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* MAIN CONTAINER */}
-      <main className="pt-24 pb-20 px-6 max-w-7xl mx-auto min-h-screen">
+      <div className="py-8 px-6 max-w-7xl mx-auto min-h-screen">
         
         {/* Welcome message */}
         <div className="mb-6">
@@ -962,7 +874,7 @@ export default function CustomerHome() {
             )}
           </div>
         )}
-      </main>
+      </div>
 
       {/* -------------------- RESPONSIVE FILTER MODAL -------------------- */}
       {isFilterOpen && (

@@ -30,18 +30,7 @@ export default function ProductDetails() {
 
   return (
     <>
-      
-{/* Top AppBar (Back & Fav) */}
-<header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm h-14 flex justify-between items-center px-lg">
-<button aria-label="Go back" className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors active:scale-95 duration-150" onClick={() => navigate(-1)}>
-<span className="material-symbols-outlined text-trust-blue">arrow_back</span>
-</button>
-<span className="font-display-lg text-headline-lg-mobile font-bold text-trust-blue">Go2Pick</span>
-<button aria-label="Add to favorites" className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors active:scale-95 duration-150" id="fav-btn">
-<span className="material-symbols-outlined text-trust-blue" id="fav-icon">favorite</span>
-</button>
-</header>
-<main className="pt-14 pb-32">
+      <div className="py-8 max-w-4xl mx-auto px-md md:px-lg min-h-screen">
 {/* Hero Image Carousel Section */}
 <section className="relative w-full aspect-[4/5] md:aspect-video overflow-hidden">
 <div className="flex h-full transition-transform duration-500 ease-out" id="carousel">
@@ -122,7 +111,7 @@ export default function ProductDetails() {
 </div>
 </section>
 </article>
-</main>
+</div>
 {/* Bottom Sticky Navigation & Actions */}
 <div className="fixed bottom-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-t border-border-gray/30 px-lg py-md flex items-center justify-between gap-xl shadow-[0_-4px_24px_-1px_rgba(0,0,0,0.08)]">
 {/* Quantity Selector */}

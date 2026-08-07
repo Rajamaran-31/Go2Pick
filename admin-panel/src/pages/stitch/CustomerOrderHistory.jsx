@@ -70,25 +70,7 @@ export default function CustomerOrderHistory() {
   };
 
   return (
-    <>
-      
-{/* Top Navigation Anchor */}
-<nav className="fixed top-0 w-full z-50 bg-surface/80 glass-header shadow-sm h-16">
-<div className="flex justify-between items-center h-full px-gutter w-full max-w-container-max mx-auto">
-<div className="flex items-center gap-4">
-<button onClick={() => setIsDrawerOpen(true)} className="active:scale-95 transition-transform p-2 rounded-full hover:bg-surface-variant/50">
-<span className="material-symbols-outlined text-primary">menu</span>
-</button>
-<h1 onClick={() => navigate('/')} className="font-headline-lg-mobile text-headline-lg-mobile font-bold text-trust-blue cursor-pointer">Go2Pick</h1>
-</div>
-<div className="flex items-center gap-2">
-<button onClick={() => navigate('/cart')} className="active:scale-95 transition-transform p-2 rounded-full hover:bg-surface-variant/50">
-<span className="material-symbols-outlined text-primary">shopping_cart</span>
-</button>
-</div>
-</div>
-</nav>
-<main className="pt-20 px-4 max-w-2xl mx-auto">
+    <div className="py-8 px-4 max-w-2xl mx-auto min-h-screen">
 {/* Page Header */}
 <header className="py-4">
 <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-background mb-4">Order History</h2>
@@ -150,24 +132,6 @@ export default function CustomerOrderHistory() {
   </div>
 )}
 </section>
-</main>
-{isDrawerOpen && (
-  <div className="fixed inset-0 z-[200] flex">
-    <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
-    <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
-      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
-      <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
-      <div className="flex flex-col gap-2">
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">home</span> Home</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/explore'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">explore</span> Explore</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/cart'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">shopping_cart</span> Cart</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/orders'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">receipt_long</span> Orders</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/profile'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">person</span> Profile</button>
-      </div>
-    </div>
-  </div>
-)}
-
-    </>
+</div>
   );
 }
