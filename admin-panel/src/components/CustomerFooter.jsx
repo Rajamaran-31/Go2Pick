@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export default function CustomerFooter() {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-12 px-6 border-t border-slate-800">
+    <footer className="bg-slate-900 text-slate-400 pt-12 pb-28 px-6 border-t border-slate-800">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
         
         {/* Brand Info */}

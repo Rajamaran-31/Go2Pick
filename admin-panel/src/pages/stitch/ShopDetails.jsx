@@ -97,6 +97,25 @@ export default function ShopDetails() {
     fetchFavoriteStatus();
   }, [token, shopId]);
 
+  // Scroll to and highlight selected product if productId is in URL
+  const productId = searchParams.get('productId');
+  React.useEffect(() => {
+    if (!isLoading && productId) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`product-${productId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Highlight with a nice animation ring
+          element.classList.add('ring-2', 'ring-trust-blue', 'scale-[1.02]');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-trust-blue', 'scale-[1.02]');
+          }, 2500);
+        }
+      }, 600); // Allow images and layouts to settle
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, productId]);
+
   const scrollToReviews = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     console.log("DEBUG [scrollToReviews] Scrolling to reviews section");
@@ -354,7 +373,7 @@ export default function ShopDetails() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
 
     {products.map(item => (
-    <div key={item.id} onClick={() => navigate(`/product/${item.id}`)} className="bg-white p-sm rounded-xl shadow-sm flex gap-md items-center group hover:shadow-md transition-shadow cursor-pointer">
+    <div key={item.id} id={`product-${item.id || item._id}`} onClick={() => navigate(`/product/${item.id}`)} className="bg-white p-sm rounded-xl shadow-sm flex gap-md items-center group hover:shadow-md transition-all duration-300 cursor-pointer border border-transparent">
     <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
     <img alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={item.image || 'https://placehold.co/150'}/>
     </div>
@@ -437,7 +456,7 @@ export default function ShopDetails() {
     )}
     </div>
 
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-md z-50">
+      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-md z-50">
         <Link to="/cart" className="w-full h-14 bg-trust-blue text-on-primary rounded-full shadow-lg flex items-center justify-between px-lg active:scale-95 transition-all" id="view-cart-fab">
 <div className="flex items-center gap-md">
 <div className="relative">

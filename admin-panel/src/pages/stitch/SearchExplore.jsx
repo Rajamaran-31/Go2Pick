@@ -72,26 +72,26 @@ export default function SearchExplore() {
 <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Categories</h2>
 <button onClick={() => navigate('/categories')} className="text-trust-blue font-label-sm uppercase tracking-wider hover:underline">View All</button>
 </div>
-<div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-md">
-{categories.map(category => {
-  const imageUrl = category.image || defaultCategoryImages[category.name] || defaultCategoryImages['Grocery'];
-  return (
-    <div key={category.id} onClick={() => navigate(`/category/${encodeURIComponent(category.name)}`)} className="flex flex-col items-center gap-xs cursor-pointer group bg-surface-container-low p-md rounded-2xl border border-border-gray hover:shadow-md transition-all active:scale-95">
-      <div className="h-16 w-16 md:h-20 md:w-20 rounded-full overflow-hidden flex items-center justify-center bg-surface-container-high transition-colors shadow-sm">
-        <img 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
-          src={imageUrl} 
-          alt={category.name}
-          onError={(e) => {
-            e.target.src = defaultCategoryImages[category.name] || defaultCategoryImages['Grocery'];
-          }}
-        />
-      </div>
-      <span className="font-label-sm text-label-sm text-on-surface-variant font-semibold mt-1 text-center">{category.name}</span>
-    </div>
-  );
-})}
-</div>
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-md">
+        {categories.map(category => {
+          const imageUrl = category.image || defaultCategoryImages[category.name] || defaultCategoryImages['Grocery'];
+          return (
+            <div key={category.id} onClick={() => navigate(`/category/${encodeURIComponent(category.name)}`)} className="flex flex-col items-center gap-xs cursor-pointer group text-center active:scale-95 transition-all">
+              <div className="h-14 w-14 md:h-16 md:w-16 rounded-full overflow-hidden flex items-center justify-center bg-surface-container-high transition-all shadow-sm ring-2 ring-slate-100 ring-offset-2 group-hover:ring-trust-blue/40 group-hover:scale-105">
+                <img 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                  src={imageUrl} 
+                  alt={category.name}
+                  onError={(e) => {
+                    e.target.src = defaultCategoryImages[category.name] || defaultCategoryImages['Grocery'];
+                  }}
+                />
+              </div>
+              <span className="font-semibold text-xs text-on-surface-variant group-hover:text-trust-blue transition-colors mt-2 text-center truncate w-full">{category.name}</span>
+            </div>
+          );
+        })}
+        </div>
 </section>
 {/* Trending Shops Carousel */}
 <section className="mb-xl overflow-hidden -mx-md md:mx-0 px-md md:px-0">
@@ -127,11 +127,11 @@ export default function SearchExplore() {
 <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-md">Recommended for You</h2>
 <div className="space-y-md">
 {products.map((product) => (
-<div className="flex bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-border-gray p-xs gap-md group cursor-pointer" onClick={() => navigate(`/product/${product.id || product._id}`)} key={product.id || product._id}>
-<div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer" onClick={() => navigate(`/product/${product.id || product._id}`)}>
+<div className="flex bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm border border-border-gray p-xs gap-md group cursor-pointer" onClick={() => navigate(`/shop-details?id=${product.shopId || product.shop_id}&productId=${product.id || product._id}`)} key={product.id || product._id}>
+<div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer" onClick={() => navigate(`/shop-details?id=${product.shopId || product.shop_id}&productId=${product.id || product._id}`)}>
 <img alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={product.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuC_YOM1erOnuPQ9W2j3Mz329bZNWzbuse9Z-1j12bwtkopphgAwAGGT0iNFISkiPLgPrLc3rqY5HdhxUNlXImmbtEHlYBn9MrJ9Ctb-pMSNyQa7zzEksD2ysx7pHJEXZAKuo8nUbeokszmzNeCXJNyJdFw6kRtYcu_ljLzLIpRyHk4h5wsoQFK9UeLof9hfiV1gKX5W6cmhVnW7ZLBNsmlJ8zOkstyaDeQwhhc4A9AH7Ao3U5qbfxb7TAwhgU1c71pBD9zyGY9e-7Ni"}/>
 </div>
-<div className="flex flex-col justify-between py-xs pr-xs flex-grow cursor-pointer" onClick={() => navigate(`/product/${product.id || product._id}`)}>
+<div className="flex flex-col justify-between py-xs pr-xs flex-grow cursor-pointer" onClick={() => navigate(`/shop-details?id=${product.shopId || product.shop_id}&productId=${product.id || product._id}`)}>
 <div className="flex justify-between items-start">
 <div>
 <h4 className="font-title-md text-on-surface leading-tight">{product.name || 'Product'}</h4>

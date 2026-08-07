@@ -66,7 +66,7 @@ export default function ShoppingCart() {
 </section>
 </div>
 
-<div className="fixed bottom-0 left-0 w-full p-md bg-surface/90 backdrop-blur-md z-40 border-t border-surface-variant/30 flex flex-col justify-center items-center gap-sm">
+<div className="fixed bottom-[68px] left-0 w-full p-md bg-surface/90 backdrop-blur-md z-40 border-t border-surface-variant/30 flex flex-col justify-center items-center gap-sm">
 <button onClick={() => navigate('/checkout')} className="w-full max-w-container-max bg-trust-blue hover:bg-primary-container text-on-primary font-title-md py-lg rounded-xl shadow-lg transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-md">
 <span>Proceed to Checkout</span>
 <span className="material-symbols-outlined">arrow_forward</span>

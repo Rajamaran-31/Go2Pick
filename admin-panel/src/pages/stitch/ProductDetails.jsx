@@ -31,28 +31,59 @@ export default function ProductDetails() {
   return (
     <>
       <div className="py-8 max-w-4xl mx-auto px-md md:px-lg min-h-screen">
-{/* Hero Image Carousel Section */}
-<section className="relative w-full aspect-[4/5] md:aspect-video overflow-hidden">
-<div className="flex h-full transition-transform duration-500 ease-out" id="carousel">
-{product.image ? (
-  <img className="w-full h-full object-cover flex-shrink-0" src={product.image.startsWith('http') ? product.image : `${API_BASE}${product.image}`} alt={product.name} />
-) : product.images && product.images.length > 0 ? (
-  product.images.map((img, i) => (
-    <img key={i} className="w-full h-full object-cover flex-shrink-0" src={img.startsWith('http') ? img : `${API_BASE}${img}`} alt={product.name} />
-  ))
-) : (
-  <>
-  <img className="w-full h-full object-cover flex-shrink-0" data-alt="High-resolution, macro photography of roasted coffee beans in a rustic ceramic bowl. The lighting is soft and warm, highlighting the oily texture of the dark Arabica beans." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxmhpAAsRpOwOsw13HVV9Xl-uEuGyh428I6jpm9NlPjIXiXAt_qUIKsSA32-mVyAuXnJuBwRbxCx2HngIpD3QJ2qLlmUvvk6HNftOvbW-GWsXE43jSAGfvHTAiivy5dGj4U6sjM3nJzp9JyvGIbUGtA0trINpQZciKE_afvfzpR1hU9r0uzTUuw8drr91Z2lUPoXJGxenb03FaMUOgMZddMlm2IuIaxBtMbNQYhh5TG9hlR6YarAdnCDZwRErRYovAeuAxcij9CttE"/>
-  <img className="w-full h-full object-cover flex-shrink-0" data-alt="A premium, matte-finished coffee bean bag standing on a clean marble countertop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAy9_Q0wP61Qg_hUUXaBBeGtgNB8Axrjnll3gPE56HQr09h3aPcvD-9bwEqTVm0fUSZ_icSuT_BxO_riXk8_s8Nqf-h0XY2uafnRZ3fUgcHql2EODBy0OBZMAZ4_2sxgQgouH1oufDPLuEMdoaEQSNGX7KtrFjgacWRGqCBRuSHSWkh2uFFwas6ObEW-MoVNK6EsrYjbohf8tG41zsTkCdmadSDTUPW0VSK_q9O22Nkav731l1d6XzKUDswSiGyh3AwHuQxIX9L5GgS"/>
-  </>
-)}
-</div>
-{/* Carousel Indicators */}
-<div className="absolute bottom-md left-1/2 -translate-x-1/2 flex gap-xs">
-<div className="w-2 h-2 rounded-full bg-on-surface/40"></div>
-<div className="w-2 h-2 rounded-full bg-on-surface/40"></div>
-</div>
-</section>
+{/* Hero Image Section */}
+{(() => {
+  // Collect all possible image URLs from the product data
+  const allImages = [];
+  const imgFields = [product.image, product.imageUrl, product.productImage];
+  imgFields.forEach(img => {
+    if (img && typeof img === 'string' && img.trim() !== '') allImages.push(img);
+  });
+  if (product.images && Array.isArray(product.images)) {
+    product.images.forEach(img => {
+      if (img && typeof img === 'string' && img.trim() !== '' && !allImages.includes(img)) allImages.push(img);
+    });
+  }
+
+  const resolveUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/')) return `${API_BASE}${url}`;
+    return `${API_BASE}/${url}`;
+  };
+
+  if (allImages.length > 0) {
+    return (
+      <section className="relative w-full overflow-hidden bg-slate-100" style={{ minHeight: '300px', maxHeight: '450px' }}>
+        <div className="flex h-full" style={{ minHeight: '300px' }}>
+          {allImages.map((img, i) => (
+            <img
+              key={i}
+              className="w-full object-cover flex-shrink-0"
+              style={{ minHeight: '300px', maxHeight: '450px' }}
+              src={resolveUrl(img)}
+              alt={product.name || 'Product'}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+              }}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // Fallback: no image available — show a styled placeholder
+  return (
+    <section className="relative w-full overflow-hidden bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center" style={{ minHeight: '300px', maxHeight: '450px' }}>
+      <div className="flex flex-col items-center gap-4 text-slate-400">
+        <span className="material-symbols-outlined" style={{ fontSize: '80px' }}>image</span>
+        <p className="text-lg font-medium">No image available</p>
+      </div>
+    </section>
+  );
+})()}
 {/* Product Content Canvas */}
 <article className="px-lg -mt-xl relative z-10 bg-surface rounded-t-[32px] pt-lg">
 <div className="flex justify-between items-start mb-sm">
@@ -113,7 +144,7 @@ export default function ProductDetails() {
 </article>
 </div>
 {/* Bottom Sticky Navigation & Actions */}
-<div className="fixed bottom-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-t border-border-gray/30 px-lg py-md flex items-center justify-between gap-xl shadow-[0_-4px_24px_-1px_rgba(0,0,0,0.08)]">
+<div className="fixed bottom-[68px] w-full z-50 bg-surface/90 backdrop-blur-xl border-t border-border-gray/30 px-lg py-md flex items-center justify-between gap-xl shadow-[0_-4px_24px_-1px_rgba(0,0,0,0.08)]">
 {/* Quantity Selector */}
 <div className="flex items-center bg-surface-container-high rounded-full px-base py-base h-12">
 <button className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors active:scale-90" onClick={() => setQuantity(Math.max(1, quantity - 1))}>

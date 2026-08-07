@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate , useLocation} from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import api from '../../services/api';
+import api, { API_BASE } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function CustomerProfile() {
@@ -45,7 +45,7 @@ export default function CustomerProfile() {
 </div>
 <div className="absolute bottom-0 left-gutter flex flex-col md:flex-row items-end md:items-center gap-md">
 <div className="relative">
-<img alt={user?.fullName || "User"} className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-surface shadow-xl object-cover" src={user?.profileImage || "https://lh3.googleusercontent.com/aida-public/AB6AXuCqaKhpkooD-GGOSou9UxsVlzCVUMrg0eHvq6KI2s93EYjZ_2TaUBy_5yqbENieIx1CEk4Dehv845KEFutVKzxYT31DBtFHufbDAL05lJ9zhtr-s1kF8wXtgoLrM1ToskwCH4RDWOgDTuyDtCR0rsDpMXZFOmiiQys7hBuljFX9mFncVlo48c6-MLsSpkXpiLBn-Yy6n-rF8IHvZU3BIuH0c6GbPL80fL4xPlak3uxA6l-C-_B_zIt9gypIDLvFwGGmHdFOB8Iaprl7"}/>
+<img alt={user?.fullName || "User"} className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-surface shadow-xl object-cover" src={user?.profileImage ? (user.profileImage.startsWith('http') ? user.profileImage : `${API_BASE}${user.profileImage}`) : "https://lh3.googleusercontent.com/aida-public/AB6AXuCqaKhpkooD-GGOSou9UxsVlzCVUMrg0eHvq6KI2s93EYjZ_2TaUBy_5yqbENieIx1CEk4Dehv845KEFutVKzxYT31DBtFHufbDAL05lJ9zhtr-s1kF8wXtgoLrM1ToskwCH4RDWOgDTuyDtCR0rsDpMXZFOmiiQys7hBuljFX9mFncVlo48c6-MLsSpkXpiLBn-Yy6n-rF8IHvZU3BIuH0c6GbPL80fL4xPlak3uxA6l-C-_B_zIt9gypIDLvFwGGmHdFOB8Iaprl7"}/>
 <div className="absolute bottom-1 right-1 bg-success-green w-5 h-5 md:w-6 md:h-6 rounded-full border-4 border-surface"></div>
 </div>
 <div className="mb-2 md:mb-4">

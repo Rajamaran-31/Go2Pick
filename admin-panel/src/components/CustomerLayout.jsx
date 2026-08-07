@@ -10,7 +10,7 @@ export default function CustomerLayout() {
       <CustomerHeader />
       
       {/* Main content wrapper */}
-      <main className="flex-grow pt-16">
+      <main className="flex-grow pt-16 pb-20">
         <Outlet />
       </main>
       

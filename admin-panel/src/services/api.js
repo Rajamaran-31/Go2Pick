@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { auth } from '../firebase';
 
-export const API_BASE = 'https://go2pick.onrender.com';
+export const API_BASE = 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE,

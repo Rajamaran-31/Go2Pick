@@ -170,7 +170,7 @@ export default function CheckoutWithConfirmationPopup() {
       </main>
 
       {/* Bottom Action Area */}
-      <div className="fixed bottom-16 w-full p-gutter bg-surface/80 backdrop-blur-md z-40 border-t border-outline-variant/30">
+      <div className="fixed bottom-[68px] w-full p-gutter bg-surface/80 backdrop-blur-md z-40 border-t border-outline-variant/30">
         <button 
           onClick={handlePlaceOrder}
           disabled={isProcessing || (cartItems?.length > 0 && !cartItems[0].shop_id && !cartItems[0].shopId)}

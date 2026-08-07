@@ -123,7 +123,7 @@ export default function AdminRoleSettings() {
       </main>
 
       {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 w-full bg-surface border-t border-border-gray p-4 flex justify-end gap-4 shadow-[0_-4px_6px_-1px_rgb(0_0_0/0.05)] z-40">
+      <div className="fixed bottom-[68px] left-0 w-full bg-surface border-t border-border-gray p-4 flex justify-end gap-4 shadow-[0_-4px_6px_-1px_rgb(0_0_0/0.05)] z-40">
         <button onClick={() => navigate('/admin/settings')} className="px-6 py-2 border-2 border-primary text-primary font-title-sm rounded-lg hover:bg-primary/5 active:scale-95 transition-all">
           Cancel
         </button>

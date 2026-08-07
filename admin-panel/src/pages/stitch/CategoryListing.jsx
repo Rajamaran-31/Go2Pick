@@ -413,7 +413,7 @@ export default function CategoryListing() {
                   <div 
                     className="min-w-[180px] max-w-[180px] group cursor-pointer bg-white border border-slate-150 rounded-2xl p-2.5 hover:shadow-md transition-shadow relative flex flex-col justify-between" 
                     key={product.id || product._id} 
-                    onClick={() => navigate(`/product/${product.id || product._id}`)}
+                    onClick={() => navigate(`/shop-details?id=${product.shopId || product.shop_id}&productId=${product.id || product._id}`)}
                   >
                     <div>
                       {/* Product Image */}

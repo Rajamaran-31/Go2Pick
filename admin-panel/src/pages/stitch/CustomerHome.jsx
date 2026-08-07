@@ -527,7 +527,7 @@ export default function CustomerHome() {
                       {searchedProducts.map(product => (
                         <div 
                           key={product.id || product._id}
-                          onClick={() => navigate(`/product/${product.id || product._id}`)}
+                          onClick={() => navigate(`/shop-details?id=${product.shopId || product.shop_id}&productId=${product.id || product._id}`)}
                           className="flex items-center gap-4 bg-white border border-slate-200 p-3 rounded-2xl cursor-pointer hover:border-trust-blue hover:shadow-md transition-all"
                         >
                           <div className="h-14 w-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
@@ -580,7 +580,7 @@ export default function CustomerHome() {
                   // Categories Skeleton
                   Array(6).fill(0).map((_, idx) => (
                     <div key={idx} className="flex-shrink-0 flex flex-col items-center gap-2 w-16">
-                      <div className="h-16 w-16 rounded-full bg-slate-100 animate-pulse" />
+                      <div className="h-14 w-14 rounded-full bg-slate-100 animate-pulse" />
                       <div className="h-3 w-10 bg-slate-100 rounded animate-pulse" />
                     </div>
                   ))
@@ -594,7 +594,7 @@ export default function CustomerHome() {
                           onClick={() => navigate(`/category/${encodeURIComponent(category.name)}`)} 
                           className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group text-center"
                         >
-                          <div className="h-16 w-16 md:h-20 md:w-20 rounded-full overflow-hidden flex items-center justify-center bg-slate-100 group-hover:bg-slate-200 transition-colors shadow-sm ring-2 ring-slate-100 ring-offset-2 group-hover:ring-trust-blue/40">
+                          <div className="h-14 w-14 md:h-16 md:w-16 rounded-full overflow-hidden flex items-center justify-center bg-slate-100 group-hover:bg-slate-200 transition-colors shadow-sm ring-2 ring-slate-100 ring-offset-2 group-hover:ring-trust-blue/40">
                             <img 
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
                               src={imageUrl} 
@@ -615,7 +615,7 @@ export default function CustomerHome() {
                       onClick={() => navigate('/categories')} 
                       className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group text-center"
                     >
-                      <div className="h-16 w-16 md:h-20 md:w-20 rounded-full flex items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 group-hover:border-trust-blue group-hover:bg-trust-blue/5 transition-all shadow-sm">
+                      <div className="h-14 w-14 md:h-16 md:w-16 rounded-full flex items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 group-hover:border-trust-blue group-hover:bg-trust-blue/5 transition-all shadow-sm">
                         <span className="material-symbols-outlined text-slate-400 group-hover:text-trust-blue transition-colors text-2xl">arrow_forward</span>
                       </div>
                       <span className="font-semibold text-xs text-slate-500 group-hover:text-trust-blue transition-colors mt-1">View All</span>

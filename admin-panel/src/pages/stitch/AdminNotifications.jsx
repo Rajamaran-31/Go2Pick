@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { API_BASE } from '../../services/api';
 
 export default function AdminNotifications() {
   const navigate = useNavigate();
@@ -90,11 +91,11 @@ export default function AdminNotifications() {
                   <button 
                     onClick={() => {
                       const userToken = localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token') || localStorage.getItem('token');
-                      fetch(`https://go2pick.onrender.com/api/notifications/${n.id}/read`, {
+                      fetch(`${API_BASE}/api/notifications/${n.id}/read`, {
                         method: 'PUT',
                         headers: { Authorization: `Bearer ${userToken}` }
                       }).then(() => {
-                        return fetch(`https://go2pick.onrender.com/api/shopkeeper/enable-dashboard`, {
+                        return fetch(`${API_BASE}/api/shopkeeper/enable-dashboard`, {
                           method: 'POST',
                           headers: { Authorization: `Bearer ${userToken}` }
                         });

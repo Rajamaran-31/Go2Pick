@@ -58,6 +58,8 @@ import SystemHealth from './pages/stitch/SystemHealth';
 import AuditTrail from './pages/stitch/AuditTrail';
 import AdminRoleSettings from './pages/stitch/AdminRoleSettings';
 import ShopReviews from './pages/stitch/ShopReviews';
+import BottomTabBar from './components/BottomTabBar';
+import BackButton from './components/BackButton';
 
 function PrivateRoute() {
   const { token, loading } = useAuth();
@@ -223,6 +225,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <BackButton />
+        <BottomTabBar />
       </ErrorBoundary>
     </AppProvider>
   );

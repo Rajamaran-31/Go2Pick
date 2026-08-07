@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
-import api from '../services/api';
+import api, { API_BASE } from '../services/api';
 
 export default function CustomerHeader() {
   const navigate = useNavigate();
@@ -157,7 +157,7 @@ export default function CustomerHeader() {
                   <img 
                     className="w-full h-full object-cover" 
                     alt="Customer Avatar"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0a2cxlAd3XgffYKhoD4B6BnLlbMGkRW71EqZAARhJAGaqadZ_Zs-JSxW_71_1DxL0eYYXySawpinxIb7Cz4Qn6IDq02YDlSD6PlUVfZhKnEjY8Xhp3vTjkn0tIrG7Zb8B_gmTvS3n6NjOiS7jJaSMjzveJrpuoG6DyMKHItpE53YW1KEm4L7rvk05Q8cpkCw5dxkqduJdE5DgVqFG9pepsN7GJsEzSOfvKnlj5PTi2H01RzPXKXeIXqO2KQAEfWMN_gQEQNCFT06-"
+                    src={user.profileImage ? (user.profileImage.startsWith('http') ? user.profileImage : `${API_BASE}${user.profileImage}`) : "https://lh3.googleusercontent.com/aida-public/AB6AXuB0a2cxlAd3XgffYKhoD4B6BnLlbMGkRW71EqZAARhJAGaqadZ_Zs-JSxW_71_1DxL0eYYXySawpinxIb7Cz4Qn6IDq02YDlSD6PlUVfZhKnEjY8Xhp3vTjkn0tIrG7Zb8B_gmTvS3n6NjOiS7jJaSMjzveJrpuoG6DyMKHItpE53YW1KEm4L7rvk05Q8cpkCw5dxkqduJdE5DgVqFG9pepsN7GJsEzSOfvKnlj5PTi2H01RzPXKXeIXqO2KQAEfWMN_gQEQNCFT06-"}
                   />
                 </div>
                 <span className="font-semibold text-sm text-slate-700">{user.fullName?.split(' ')[0] || 'User'}</span>
