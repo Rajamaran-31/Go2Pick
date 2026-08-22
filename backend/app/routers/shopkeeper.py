@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import io
-import pandas as pd
+import csv
 from firebase_admin import firestore
 
 from app.database import get_db
@@ -740,22 +740,35 @@ async def bulk_import_products(
     now = datetime.now(timezone.utc)
 
     content = await file.read()
+    rows = []
     try:
         filename = file.filename or ""
         if filename.lower().endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(content))
+            import csv
+            text_str = content.decode("utf-8-sig", errors="ignore")
+            reader = csv.DictReader(io.StringIO(text_str))
+            for r in reader:
+                cleaned_row = {str(k).lower().strip(): v for k, v in r.items() if k}
+                rows.append(cleaned_row)
         elif filename.lower().endswith((".xlsx", ".xls")):
+            import pandas as pd
             df = pd.read_excel(io.BytesIO(content))
+            df.columns = df.columns.str.lower().str.strip()
+            rows = df.to_dict(orient="records")
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format. Use CSV or XLSX.")
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=400, detail=f"Could not parse file: {str(e)}")
 
+    if not rows:
+        raise HTTPException(status_code=400, detail="Uploaded file contains no rows.")
+
     required_cols = {"name", "price"}
-    if not required_cols.issubset(set(df.columns.str.lower())):
+    if not required_cols.issubset(set(rows[0].keys())):
         raise HTTPException(status_code=400, detail="File must have at least 'name' and 'price' columns")
 
-    df.columns = df.columns.str.lower().str.strip()
     docs = []
     errors = []
 
