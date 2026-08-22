@@ -92,6 +92,8 @@ class Database:
 
 def get_db():
     if Database.db is None:
+        Database.connect()
+    if Database.db is None:
         raise HTTPException(
             status_code=503,
             detail="Database service is unavailable. Firebase credentials may be missing or invalid."
