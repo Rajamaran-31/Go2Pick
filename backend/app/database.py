@@ -52,12 +52,16 @@ class Database:
         try:
             if not firebase_admin._apps:
                 # Check if the credentials config is a raw JSON string (common in production environments like Render/Vercel)
-                if creds_config.strip().startswith('{'):
+                if creds_config and creds_config.strip().startswith('{'):
                     print("Loading Firebase credentials from raw JSON environment variable...")
                     cred_dict = json.loads(creds_config)
                     cred = credentials.Certificate(cred_dict)
                 else:
                     resolved_path = resolve_firebase_credentials(creds_config)
+                    if not Path(resolved_path).exists():
+                        print(f"Firebase credentials file not found at: {resolved_path}")
+                        cls.db = None
+                        return
                     print(f"Loading Firebase credentials from file: {resolved_path}")
                     cred = credentials.Certificate(resolved_path)
                 
