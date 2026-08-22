@@ -19,8 +19,8 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || payload.data?.title || 'Go2Pick Notification';
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.message || payload.data?.body || '',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     vibrate: [200, 100, 200],
     requireInteraction: true,
     data: payload.data || {},
@@ -41,8 +41,8 @@ self.addEventListener('push', (event) => {
     const notificationTitle = payload.notification?.title || payload.data?.title || 'Go2Pick Notification';
     const notificationOptions = {
       body: payload.notification?.body || payload.data?.message || payload.data?.body || '',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       vibrate: [200, 100, 200],
       requireInteraction: true,
       data: payload.data || {},

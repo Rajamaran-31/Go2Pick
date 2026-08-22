@@ -12,8 +12,8 @@ def send_fcm_push(tokens: list, title: str, body: str, data: Optional[dict] = No
             notification=firebase_messaging.WebpushNotification(
                 title=title,
                 body=body,
-                icon='/favicon.ico',
-                badge='/favicon.ico',
+                icon='https://go2-pick.vercel.app/icon-192.png',
+                badge='https://go2-pick.vercel.app/icon-192.png',
                 vibrate=[200, 100, 200],
                 require_interaction=True,
             )
@@ -23,6 +23,7 @@ def send_fcm_push(tokens: list, title: str, body: str, data: Optional[dict] = No
             notification=firebase_messaging.Notification(
                 title=title,
                 body=body,
+                image='https://go2-pick.vercel.app/logo.png',
             ),
             webpush=webpush_config,
             data={k: str(v) for k, v in (data or {}).items() if v is not None},

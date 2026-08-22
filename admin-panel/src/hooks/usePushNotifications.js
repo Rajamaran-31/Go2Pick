@@ -59,7 +59,8 @@ export function usePushNotifications() {
             try {
               new Notification(title, {
                 body,
-                icon: '/favicon.ico',
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
                 data: payload.data
               });
             } catch (e) {
