@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { auth } from '../firebase';
 
-export const API_BASE = import.meta.env.VITE_API_URL || 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const rawApiUrl = import.meta.env.VITE_API_URL || '';
+export const API_BASE = (rawApiUrl && !rawApiUrl.includes('onrender.com'))
+  ? rawApiUrl
+  : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000'
     : 'https://go2pick-backend.vercel.app');
 

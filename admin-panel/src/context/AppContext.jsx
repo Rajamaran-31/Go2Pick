@@ -40,19 +40,13 @@ export const AppProvider = ({ children }) => {
   }, [user]);
 
   useEffect(() => {
-    let checkInterval = null;
-
     const checkHealth = () => {
       api.get('/health')
         .then(res => {
-          if (res.data?.database === "disconnected") {
-            setDbStatus("disconnected");
-          } else {
+          if (res.data?.database === "connected" || res.data?.status === "healthy") {
             setDbStatus("connected");
-            if (checkInterval) {
-              clearInterval(checkInterval);
-              checkInterval = null;
-            }
+          } else {
+            setDbStatus("disconnected");
           }
         })
         .catch(err => {
@@ -62,15 +56,8 @@ export const AppProvider = ({ children }) => {
     };
 
     checkHealth();
-
-    // Poll every 8 seconds to automatically clear the banner once the Render server wakes up
-    checkInterval = setInterval(() => {
-      checkHealth();
-    }, 8000);
-
-    return () => {
-      if (checkInterval) clearInterval(checkInterval);
-    };
+    const interval = setInterval(checkHealth, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const refreshNotifications = () => {
