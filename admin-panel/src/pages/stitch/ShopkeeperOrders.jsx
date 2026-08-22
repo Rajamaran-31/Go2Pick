@@ -46,7 +46,7 @@ export default function ShopkeeperOrders() {
   const location = useLocation();
   const navigate = useNavigate();
   const handleAlert = (msg) => {
-    fetch('/api/action', { method: 'POST' }).finally(() => alert(`Action triggered! ${msg}`));
+    console.log("Action triggered:", msg);
   };
   const [activeTab, setActiveTab] = useState('All');
   const [search, setSearch] = useState('');
@@ -158,11 +158,10 @@ export default function ShopkeeperOrders() {
       await api.put(`/api/shopkeeper/orders/${id}/status`, { status: 'accepted' });
       // Transition from accepted to preparing
       await api.put(`/api/shopkeeper/orders/${id}/status`, { status: 'preparing' });
-      alert("Order accepted and is now preparing!");
       fetchOrders(false);
     } catch (err) {
       console.error("Failed to accept order:", err);
-      alert(err.response?.data?.detail || "Failed to accept order");
+      setErrorMessage(err.response?.data?.detail || "Failed to accept order");
     }
   };
 
@@ -173,11 +172,10 @@ export default function ShopkeeperOrders() {
       const nextStatus = isDelivery ? 'out_for_delivery' : 'ready_for_pickup';
       
       await api.put(`/api/shopkeeper/orders/${id}/status`, { status: nextStatus });
-      alert(isDelivery ? "Order marked as out for delivery!" : "Order marked as ready for pickup!");
       fetchOrders(false);
     } catch (err) {
       console.error("Failed to mark order as ready:", err);
-      alert(err.response?.data?.detail || "Failed to update status");
+      setErrorMessage(err.response?.data?.detail || "Failed to update status");
     }
   };
 
@@ -188,17 +186,16 @@ export default function ShopkeeperOrders() {
     }
     const trimmedCode = pickupCode.trim();
     if (trimmedCode.length !== 6) {
-      alert("Invalid pickup code. The code must be exactly 6 characters.");
+      setErrorMessage("Invalid pickup code. The code must be exactly 6 characters.");
       return;
     }
 
     try {
       await api.post(`/api/shopkeeper/orders/${id}/verify-code`, { pickupCode: trimmedCode.toUpperCase() });
-      alert("Handover completed successfully!");
       fetchOrders(false);
     } catch (err) {
       console.error("Failed to complete handover:", err);
-      alert(err.response?.data?.detail || "Failed to complete handover");
+      setErrorMessage(err.response?.data?.detail || "Failed to complete handover");
     }
   };
 
