@@ -1,6 +1,7 @@
 import os
 import uuid
 import shutil
+from typing import Optional
 from pathlib import Path
 from fastapi import UploadFile, HTTPException
 
@@ -62,7 +63,7 @@ def _try_cloudinary(file: UploadFile, folder: str) -> str | None:
         return None
 
 
-async def upload_file(file: UploadFile, subfolder: str = "general", allowed_types: set = None) -> str:
+async def upload_file(file: UploadFile, subfolder: str = "general", allowed_types: Optional[set] = None) -> str:
     """Upload a file to Cloudinary (fallback: local). Returns URL."""
     if allowed_types and file.content_type not in allowed_types:
         raise HTTPException(
