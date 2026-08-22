@@ -2,10 +2,45 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from datetime import datetime, timezone
 
+from pydantic import BaseModel
+
 from app.database import get_db
 from app.auth import get_current_user
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+
+class FCMTokenRequest(BaseModel):
+    token: str
+
+
+@router.post("/register-fcm-token")
+async def register_fcm_token(
+    payload: FCMTokenRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    db = get_db()
+    user_id = str(current_user["_id"])
+    token_str = payload.token.strip()
+
+    if not token_str:
+        raise HTTPException(status_code=400, detail="Token cannot be empty")
+
+    user_ref = db.collection("users").document(user_id)
+    user_doc = user_ref.get()
+
+    if user_doc.exists:
+        tokens = user_doc.to_dict().get("fcmTokens", [])
+        if token_str not in tokens:
+            tokens.append(token_str)
+            user_ref.update({"fcmTokens": tokens, "updatedAt": datetime.now(timezone.utc)})
+    else:
+        user_ref.set({
+            "fcmTokens": [token_str],
+            "updatedAt": datetime.now(timezone.utc)
+        }, merge=True)
+
+    return {"success": True, "message": "FCM Token registered successfully"}
 
 
 # ─── GET /notifications ───────────────────────────────────────────────────────

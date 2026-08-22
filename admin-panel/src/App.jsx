@@ -118,7 +118,7 @@ function DbOfflineBanner() {
       boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
     }}>
       <span style={{ fontSize: '18px' }}>⚠️</span>
-      <span><strong>Database Connection Error:</strong> Firebase credentials are missing or invalid. The application will load, but database operations will fail. Please check backend/firebase-service-account.json or .env.</span>
+      <span><strong>Database Connection Error:</strong> Unable to connect to the backend database service. Please ensure the backend server is running.</span>
     </div>
   );
 }

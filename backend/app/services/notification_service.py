@@ -1,7 +1,37 @@
 from datetime import datetime, timezone
+from typing import Optional
+from firebase_admin import messaging as firebase_messaging
 from app.database import get_db
 
-from typing import Optional
+def send_fcm_push(tokens: list, title: str, body: str, data: Optional[dict] = None):
+    if not tokens:
+        return
+    try:
+        webpush_config = firebase_messaging.WebpushConfig(
+            headers={'Urgency': 'high'},
+            notification=firebase_messaging.WebpushNotification(
+                title=title,
+                body=body,
+                icon='/favicon.ico',
+                badge='/favicon.ico',
+                vibrate=[200, 100, 200],
+                require_interaction=True,
+            )
+        )
+        multicast_msg = firebase_messaging.MulticastMessage(
+            tokens=tokens,
+            notification=firebase_messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            webpush=webpush_config,
+            data={k: str(v) for k, v in (data or {}).items() if v is not None},
+        )
+        response = firebase_messaging.send_each_for_multicast(multicast_msg)
+        print(f"FCM Push sent to {len(tokens)} token(s): {response.success_count} success, {response.failure_count} failure")
+    except Exception as e:
+        print(f"FCM Push Exception: {e}")
+
 
 async def create_notification(
     user_id,
@@ -27,6 +57,27 @@ async def create_notification(
         "createdAt": datetime.now(timezone.utc),
     }
     db.collection("notifications").add(doc)
+
+    # Dispatch FCM push notification to user's registered device tokens
+    try:
+        if user_id:
+            user_snap = db.collection("users").document(str(user_id)).get()
+            if user_snap.exists:
+                user_data = user_snap.to_dict()
+                fcm_tokens = user_data.get("fcmTokens", [])
+                if fcm_tokens:
+                    send_fcm_push(
+                        tokens=fcm_tokens,
+                        title=title,
+                        body=message,
+                        data={
+                            "type": type or "info",
+                            "actionType": action_type or "",
+                            "actionLabel": action_label or "",
+                        }
+                    )
+    except Exception as err:
+        print("Failed to dispatch FCM push notification:", err)
 
 
 async def notify_super_admins_new_application() -> None:
@@ -61,10 +112,11 @@ async def notify_shopkeeper_rejected(user_id, shop_name: str, reason: str) -> No
 
 
 async def notify_new_order(shopkeeper_user_id, order_id: str, customer_name: str) -> None:
+    order_code_short = order_id[-6:].upper()
     await create_notification(
         user_id=shopkeeper_user_id,
-        title="New Order Received",
-        message=f"New order from {customer_name}. Order ID: {order_id}",
+        title="🚨 New Incoming Order Received!",
+        message=f"Customer {customer_name} placed a new order (Order #{order_code_short}). Tap to view!",
         type="new_order",
         action_label="View Order",
         action_type="VIEW_ORDER",

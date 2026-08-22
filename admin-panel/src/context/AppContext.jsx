@@ -1,11 +1,13 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from './AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const { user, setUser } = useAuth();
+  usePushNotifications();
   const [isShopApproved, setIsShopApproved] = useState(false);
   const [isShopkeeperMode, setIsShopkeeperMode] = useState(() => {
     return localStorage.getItem('picku_mode') === 'shopkeeper';

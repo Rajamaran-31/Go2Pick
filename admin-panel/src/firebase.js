@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getMessaging, isSupported } from 'firebase/messaging';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyC-yVxjHB9_sKuKPUsRv-x_yDXEudxnTII",
   authDomain: "go2pick-345bf.firebaseapp.com",
   projectId: "go2pick-345bf",
@@ -14,4 +15,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence);
+
+let messaging = null;
+isSupported().then((supported) => {
+  if (supported) {
+    messaging = getMessaging(app);
+  }
+}).catch((err) => {
+  console.warn("Firebase Messaging not supported in this environment:", err);
+});
+
+export { messaging };
 export default app;
