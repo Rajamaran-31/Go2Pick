@@ -21,6 +21,8 @@ messaging.onBackgroundMessage((payload) => {
     body: payload.notification?.body || payload.data?.message || payload.data?.body || '',
     icon: '/favicon.ico',
     badge: '/favicon.ico',
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
     data: payload.data || {},
     actions: [
       { action: 'open_app', title: 'Open Go2Pick' }
@@ -28,6 +30,30 @@ messaging.onBackgroundMessage((payload) => {
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Fallback listener for raw Web Push events when the website is completely closed
+self.addEventListener('push', (event) => {
+  console.log('[firebase-messaging-sw.js] Raw push event received');
+  if (!event.data) return;
+  try {
+    const payload = event.data.json();
+    const notificationTitle = payload.notification?.title || payload.data?.title || 'Go2Pick Notification';
+    const notificationOptions = {
+      body: payload.notification?.body || payload.data?.message || payload.data?.body || '',
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+      data: payload.data || {},
+      actions: [
+        { action: 'open_app', title: 'Open Go2Pick' }
+      ]
+    };
+    event.waitUntil(self.registration.showNotification(notificationTitle, notificationOptions));
+  } catch (err) {
+    console.warn('[firebase-messaging-sw.js] Could not parse raw push event:', err);
+  }
 });
 
 self.addEventListener('notificationclick', (event) => {
