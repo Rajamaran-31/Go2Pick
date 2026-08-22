@@ -58,9 +58,13 @@ app.add_middleware(
 )
 
 # ─── Static Uploads Directory ────────────────────────────────────────────────
-static_dir = Path("static/uploads")
-static_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+try:
+    static_dir = Path("static/uploads")
+    static_dir.mkdir(parents=True, exist_ok=True)
+    if Path("static").exists():
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+except Exception as e:
+    print(f"Warning: Could not create or mount static directory: {e}")
 
 # ─── Include Routers ──────────────────────────────────────────────────────────
 app.include_router(auth_router.router, prefix="/api")

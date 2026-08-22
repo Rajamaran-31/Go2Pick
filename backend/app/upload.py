@@ -15,15 +15,24 @@ MAX_FILE_SIZE_MB = 10
 
 
 def _save_local(file: UploadFile, subfolder: str) -> str:
-    """Save file locally and return its URL path."""
-    folder = UPLOAD_DIR / subfolder
-    folder.mkdir(parents=True, exist_ok=True)
-    ext = Path(file.filename).suffix.lower()
+    """Save file locally and return its URL path (fallback to /tmp for serverless)."""
+    ext = Path(file.filename or "file").suffix.lower()
     filename = f"{uuid.uuid4().hex}{ext}"
-    dest = folder / filename
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    return f"/static/uploads/{subfolder}/{filename}"
+    try:
+        folder = UPLOAD_DIR / subfolder
+        folder.mkdir(parents=True, exist_ok=True)
+        dest = folder / filename
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        return f"/static/uploads/{subfolder}/{filename}"
+    except Exception as e:
+        print(f"Serverless local save warning ({e}), saving to /tmp...")
+        tmp_folder = Path("/tmp/uploads") / subfolder
+        tmp_folder.mkdir(parents=True, exist_ok=True)
+        dest = tmp_folder / filename
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        return f"/static/uploads/{subfolder}/{filename}"
 
 
 def _try_cloudinary(file: UploadFile, folder: str) -> str | None:
