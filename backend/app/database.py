@@ -52,9 +52,15 @@ class Database:
         try:
             if not firebase_admin._apps:
                 # Check if the credentials config is a raw JSON string (common in production environments like Render/Vercel)
-                if creds_config and creds_config.strip().startswith('{'):
+                creds_str = creds_config.strip() if creds_config else ""
+                if (creds_str.startswith('"') and creds_str.endswith('"')) or (creds_str.startswith("'") and creds_str.endswith("'")):
+                    creds_str = creds_str[1:-1].strip()
+
+                if creds_str.startswith('{'):
                     print("Loading Firebase credentials from raw JSON environment variable...")
-                    cred_dict = json.loads(creds_config)
+                    cred_dict = json.loads(creds_str)
+                    if "private_key" in cred_dict and isinstance(cred_dict["private_key"], str):
+                        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
                     cred = credentials.Certificate(cred_dict)
                 else:
                     resolved_path = resolve_firebase_credentials(creds_config)
