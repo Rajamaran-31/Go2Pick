@@ -78,7 +78,11 @@ export default function NotificationsCenter() {
     visibleNotifications.map((n) => {
       console.log("DEBUG [NotificationsCenter] notification object:", n);
       console.log("DEBUG [NotificationsCenter] actionType:", n.actionType);
-      if (n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD" || n.type === "SHOP_APPROVED") {
+      const isShopApprovalNotif = n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD" || 
+                                  n.type === "SHOP_APPROVED" || 
+                                  n.type === "shop_approved" || 
+                                  Boolean(n.show_get_access_button);
+      if (isShopApprovalNotif) {
         return (
           <div key={n.id} className={`group bg-surface-container-low p-md rounded-xl shadow-sm border-l-4 border-success-green hover:bg-surface-container-high transition-all ${n.isRead ? 'opacity-70' : ''}`}>
             <div className="flex gap-md">
@@ -102,20 +106,19 @@ export default function NotificationsCenter() {
                           setIsShopApproved(true);
                           setIsShopkeeperMode(true);
                           setHasGetAccessNotification(false);
-                          alert("Shopkeeper mode unlocked! Welcome to your dashboard.");
+                          alert("🎉 Shopkeeper mode unlocked! Opening your dashboard.");
                           navigate('/shopkeeper');
                         });
                       })
                       .catch(err => {
-                        console.error("DEBUG [NotificationsCenter] Failed to enable shopkeeper dashboard:");
-                        console.error("  - status:", err.response?.status);
-                        console.error("  - response body:", err.response?.data);
-                        console.error("  - current user data:", user);
+                        console.error("DEBUG [NotificationsCenter] Failed to enable shopkeeper dashboard:", err);
                         alert(`Failed to enable shopkeeper dashboard. Error: ${err.response?.data?.detail || err.message}`);
                       });
                     }}
-                    className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all"
-                    Get Shopkeeper
+                    className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-bold flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">storefront</span>
+                    {n.actionLabel || "Get Access to Shopkeeper Dashboard"}
                   </button>
                 </div>
               </div>

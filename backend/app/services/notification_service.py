@@ -44,7 +44,7 @@ async def create_notification(
     recipient_role: Optional[str] = None,
 ) -> None:
     """Insert a notification document for a user in Cloud Firestore."""
-    db = get_db()
+    show_button = action_type == "ENABLE_SHOPKEEPER_DASHBOARD" or type in ["SHOP_APPROVED", "shop_approved"]
     doc = {
         "userId": str(user_id) if user_id else None,
         "recipientId": str(user_id) if user_id else None,
@@ -54,6 +54,7 @@ async def create_notification(
         "type": type,
         "actionLabel": action_label,
         "actionType": action_type,
+        "show_get_access_button": show_button,
         "isRead": False,
         "createdAt": datetime.now(timezone.utc),
     }
@@ -93,12 +94,13 @@ async def notify_super_admins_new_application() -> None:
     )
 
 async def notify_shopkeeper_approved(user_id, shop_name: str) -> None:
+    display_name = shop_name or "store"
     await create_notification(
         user_id=user_id,
-        title="Shop Approved",
-        message="Your shop has been approved.",
+        title="Shop Approved 🎉",
+        message=f"Your shop '{display_name}' has been approved by Super Admin!",
         type="SHOP_APPROVED",
-        action_label="Get Shopkeeper Dashboard",
+        action_label="Get Access to Shopkeeper Dashboard",
         action_type="ENABLE_SHOPKEEPER_DASHBOARD",
     )
 

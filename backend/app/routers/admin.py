@@ -37,7 +37,34 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
     except Exception as e:
         print(f"[WARN] Firestore fetch error in admin_dashboard: {e}")
 
-    pending_apps = len(get_all_applications(status="pending"))
+    # Fetch pending apps from Firestore + memory store
+    apps_list = []
+    try:
+        coll_ref = db.collection("shopkeeper_applications")
+        docs = list(coll_ref.where("status", "==", "pending").stream())
+        for d in docs:
+            ad = d.to_dict()
+            ad["id"] = d.id
+            apps_list.append(ad)
+    except Exception as e:
+        print(f"[WARN] Firestore pending apps fetch error in admin_dashboard: {e}")
+
+    mem_apps = get_all_applications(status="pending")
+    for ma in mem_apps:
+        apps_list.append(ma)
+
+    seen_ids = set()
+    unique_pending = 0
+    for app in apps_list:
+        aid = app.get("id")
+        if aid and aid not in seen_ids:
+            seen_ids.add(aid)
+            unique_pending += 1
+        elif not aid:
+            unique_pending += 1
+
+    pending_apps = unique_pending
+
 
     return {
         "success": True,

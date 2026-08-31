@@ -76,7 +76,11 @@ export default function ShopkeeperNotifications() {
     </div>
   ) : (
     visibleNotifications.map((n) => {
-      if (n.type === "shop_approved" && n.show_get_access_button) {
+      const isShopApprovalNotif = n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD" || 
+                                  n.type === "SHOP_APPROVED" || 
+                                  n.type === "shop_approved" || 
+                                  Boolean(n.show_get_access_button);
+      if (isShopApprovalNotif) {
         return (
           <div key={n.id} className={`group bg-surface-container-low p-md rounded-xl shadow-sm border-l-4 border-success-green hover:bg-surface-container-high transition-all ${n.isRead ? 'opacity-70' : ''}`}>
             <div className="flex gap-md">
@@ -107,14 +111,15 @@ export default function ShopkeeperNotifications() {
                           setIsShopApproved(true);
                           setIsShopkeeperMode(true);
                           setHasGetAccessNotification(false);
-                          alert("Shopkeeper mode unlocked! Welcome to your dashboard.");
-                          navigate('/');
+                          alert("🎉 Shopkeeper mode unlocked! Opening your dashboard.");
+                          navigate('/shopkeeper');
                         });
                       });
                     }}
-                    className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all"
+                    className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-bold flex items-center gap-2"
                   >
-                    Get Shopkeeper Dashboard
+                    <span className="material-symbols-outlined text-[18px]">storefront</span>
+                    {n.actionLabel || "Get Access to Shopkeeper Dashboard"}
                   </button>
                 </div>
               </div>
