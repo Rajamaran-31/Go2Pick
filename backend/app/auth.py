@@ -139,6 +139,9 @@ async def get_current_user(
             detail="Your account has been blocked. Contact support."
         )
 
+    if user.get("email", "").lower() == get_settings().ADMIN_EMAIL.lower():
+        user["role"] = "super_admin"
+
     # Expose both _id and id for backwards compatibility in other modules
     user["_id"] = uid
     user["id"] = uid
