@@ -102,10 +102,8 @@ export default function LoginSignup() {
           navigate('/');
         }
       } else {
-        let token;
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-          token = await userCredential.user.getIdToken();
+          await createUserWithEmailAndPassword(auth, email.trim(), password);
           await api.post('/api/auth/signup', {
             fullName: fullName || email.split('@')[0],
             email: email.trim(),
@@ -113,24 +111,15 @@ export default function LoginSignup() {
             phone: "0000000000"
           });
         } catch (fbErr) {
-          console.warn("Firebase client signup failed, falling back to local backend signup:", fbErr);
-          const signupRes = await api.post('/api/auth/signup', {
+          console.warn("Firebase client signup notice, executing backend signup:", fbErr);
+          await api.post('/api/auth/signup', {
             fullName: fullName || email.split('@')[0],
             email: email.trim(),
             password,
             phone: "0000000000"
           });
-          const loginRes = await api.post('/api/auth/login', {
-            email: email.trim(),
-            password: password
-          });
-          token = loginRes.data.access_token;
         }
         
-        const resProfile = await api.get('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        login(token, resProfile.data);
         localStorage.setItem('temp_signup_email', email.trim());
         navigate('/verify-email', { state: { email: email.trim() } });
       }
