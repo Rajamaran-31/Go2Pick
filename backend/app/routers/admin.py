@@ -224,12 +224,16 @@ async def approve_application(application_id: str, current_user: dict = Depends(
                 "shop_id": shop_id,
                 "updatedAt": now,
             })
+            try:
+                await notify_shopkeeper_approved(applicant_id, app.get("shopName", ""))
+            except Exception as notif_e:
+                print(f"[WARN] Failed to notify shopkeeper: {notif_e}")
     except Exception as fe2:
         print(f"[WARN] Firestore shop creation error: {fe2}")
 
     return {
         "success": True,
-        "message": "Application approved. Shop created.",
+        "message": "Application approved. Shop created and user notified.",
         "shopId": shop_id,
     }
 

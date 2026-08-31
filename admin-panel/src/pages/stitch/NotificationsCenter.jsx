@@ -115,8 +115,7 @@ export default function NotificationsCenter() {
                       });
                     }}
                     className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all"
-                  >
-                    Get Shopkeeper Dashboard
+                    Get Shopkeeper
                   </button>
                 </div>
               </div>

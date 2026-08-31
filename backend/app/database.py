@@ -99,15 +99,9 @@ class MongoDatabaseWrapper:
         self.firestore_db = firestore_db
 
     def collection(self, name: str) -> MongoQueryWrapper:
-        # Check if Firestore works; fallback to Mongo if Firestore throws Quota Exceeded
-        if self.firestore_db is not None:
-            try:
-                # Test query to verify Firestore is active and not 429 ResourceExhausted
-                self.firestore_db.collection(name).limit(1).stream()
-                return self.firestore_db.collection(name)
-            except Exception as e:
-                print(f"[WARN] Firestore unavailable ({e}). Using MongoDB Atlas collection '{name}'.")
-        return MongoQueryWrapper(self.mongo_db[name])
+        if self.mongo_db is not None:
+            return MongoQueryWrapper(self.mongo_db[name])
+        return self.firestore_db.collection(name)
 
 
 class Database:

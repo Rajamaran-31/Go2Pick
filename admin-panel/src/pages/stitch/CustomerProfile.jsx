@@ -66,8 +66,8 @@ export default function CustomerProfile() {
 {user?.isShopkeeper === true || user?.shopkeeperStatus === 'approved' || user?.activeShopId || user?.role === 'shopkeeper' ? (
   <>
     <div className="flex-1 space-y-xs text-center md:text-left">
-    <h3 className="font-title-md text-title-md font-bold">Shopkeeper Dashboard</h3>
-    <p className="font-body-md text-body-md opacity-90">Toggle between Customer and Shopkeeper modes to manage your orders or shop inventory.</p>
+    <h3 className="font-title-md text-title-md font-bold">🎉 Your shop is approved by the superadmin!</h3>
+    <p className="font-body-md text-body-md opacity-90">Your shop application has been approved by the superadmin. Click below to open your dedicated Shopkeeper Dashboard.</p>
     </div>
     <div className="flex items-center bg-white/20 p-1 rounded-full shadow-inner border border-white/10">
       <button 
@@ -76,8 +76,6 @@ export default function CustomerProfile() {
           console.log("Switch to Shopkeeper clicked");
           try {
             setIsSwitching(true);
-            
-            // Refetch GET /api/auth/me before switching
             const freshUser = await refreshUser();
             if (freshUser) setUser(freshUser);
             
@@ -89,14 +87,10 @@ export default function CustomerProfile() {
               }
             }
             
-            // POST /api/auth/switch-mode
             await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" });
-            
-            // Refetch GET /api/auth/me after switch success
             const finalUser = await refreshUser();
             if (finalUser) setUser(finalUser);
 
-            // Navigate to /shopkeeper
             navigate('/shopkeeper');
           } catch (err) {
             const msg = err.response?.data?.detail || err.message;
@@ -105,9 +99,9 @@ export default function CustomerProfile() {
             setIsSwitching(false);
           }
         }}
-        className={`px-4 py-2 rounded-full text-xs font-bold transition-all bg-marketplace-orange text-white shadow-md hover:opacity-90 ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all bg-emerald-700 hover:bg-emerald-800 text-white shadow-md ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        {isSwitching ? "Switching..." : "Switch to Shopkeeper"}
+        {isSwitching ? "Opening Dashboard..." : "Get Shopkeeper"}
       </button>
     </div>
   </>

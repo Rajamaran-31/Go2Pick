@@ -61,6 +61,28 @@ export default function CustomerHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+      {/* Interactive Shop Approval Banner */}
+      {user && (user.isShopkeeper === true || user.shopkeeperStatus === 'approved') && user.activeMode !== 'shopkeeper' && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white px-6 py-3 shadow-md flex flex-wrap items-center justify-between gap-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-white text-xl">storefront</span>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm md:text-base">🎉 Your shop is approved by the superadmin!</h4>
+              <p className="text-xs opacity-90">Your shop application has been approved. Click below to open your dedicated Shopkeeper Dashboard.</p>
+            </div>
+          </div>
+          <button
+            disabled={isSwitching}
+            onClick={handleSwitchMode}
+            className="bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold px-4 py-2 rounded-xl shadow transition-all active:scale-95 flex-shrink-0"
+          >
+            {isSwitching ? "Opening Dashboard..." : "Get Shopkeeper"}
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between px-6 h-16 w-full max-w-7xl mx-auto">
         
         {/* Brand Logo */}
