@@ -158,50 +158,49 @@ async def require_customer(current_user: dict = Depends(get_current_user)) -> di
 
 
 async def require_shopkeeper(current_user: dict = Depends(get_current_user)) -> dict:
-    is_sk = current_user.get("role") == "shopkeeper" or current_user.get("isShopkeeper", False)
+    if current_user.get("role") == "super_admin":
+        return current_user
+
+    is_sk = current_user.get("role") == "shopkeeper" or current_user.get("isShopkeeper", False) or current_user.get("shopkeeperStatus") == "approved"
     db = get_db()
     user_id = str(current_user["_id"])
-    
-    if not is_sk:
-        shops_ref = db.collection("shops").where("ownerId", "==", user_id).stream()
-        shops = list(shops_ref)
-        if shops:
-            is_sk = True
-            db.collection("users").document(user_id).update({
-                "isShopkeeper": True,
-                "shopkeeperStatus": "approved",
-                "shopkeeperDashboardEnabled": True,
-                "activeShopId": shops[0].id,
-                "shop_id": shops[0].id,
-                "updatedAt": datetime.now(timezone.utc)
-            })
-            current_user["isShopkeeper"] = True
-            current_user["shopkeeperStatus"] = "approved"
-            current_user["shopkeeperDashboardEnabled"] = True
-            current_user["activeShopId"] = shops[0].id
-            current_user["shop_id"] = shops[0].id
+    email = (current_user.get("email") or "").lower()
 
-    if not is_sk and current_user.get("role") != "super_admin":
+    if not is_sk:
+        try:
+            shops = list(db.collection("shops").where("ownerId", "==", user_id).stream())
+            if not shops and email:
+                shops = list(db.collection("shops").where("email", "==", email).stream())
+            if shops:
+                is_sk = True
+                current_user["isShopkeeper"] = True
+                current_user["shopkeeperStatus"] = "approved"
+                current_user["shopkeeperDashboardEnabled"] = True
+                current_user["activeShopId"] = shops[0].id
+                current_user["shop_id"] = shops[0].id
+        except Exception as se:
+            print(f"[WARN] Error checking shops in require_shopkeeper: {se}")
+
+    if not is_sk and email:
+        try:
+            apps = list(db.collection("shopkeeper_applications").where("email", "==", email).stream())
+            for a in apps:
+                if a.to_dict().get("status") == "approved":
+                    is_sk = True
+                    current_user["isShopkeeper"] = True
+                    current_user["shopkeeperStatus"] = "approved"
+                    current_user["shopkeeperDashboardEnabled"] = True
+                    break
+        except Exception as ae:
+            print(f"[WARN] Error checking applications in require_shopkeeper: {ae}")
+
+    if not is_sk:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Shopkeeper access required"
         )
 
-    if ("shop_id" in current_user or "activeShopId" in current_user) and "activeShopId" not in current_user:
-        current_user["activeShopId"] = str(current_user.get("shop_id", current_user.get("activeShopId")))
-
-    if current_user.get("role") != "super_admin" and not current_user.get("shopkeeperDashboardEnabled", False):
-        if current_user.get("shopkeeperStatus") == "approved":
-            db.collection("users").document(user_id).update({
-                "shopkeeperDashboardEnabled": True,
-                "updatedAt": datetime.now(timezone.utc)
-            })
-            current_user["shopkeeperDashboardEnabled"] = True
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Shopkeeper dashboard not enabled. Enable it from the notification first."
-            )
+    current_user["shopkeeperDashboardEnabled"] = True
     return current_user
 
 
