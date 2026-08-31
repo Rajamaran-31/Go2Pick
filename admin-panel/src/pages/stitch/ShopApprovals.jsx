@@ -65,6 +65,7 @@ export default function ShopApprovals() {
       const response = await adminAPI.approveRequest(id);
       console.log("DEBUG [Admin] approve response:", response.data);
       alert(`🎉 Application for "${shopName || 'Merchant'}" approved successfully! Shop created and user notified.`);
+      setStatusTab('approved');
       fetchRequests();
     } catch (err) {
       alert("Failed to approve: " + (err.response?.data?.detail || err.message));
@@ -75,6 +76,7 @@ export default function ShopApprovals() {
     try {
       await adminAPI.rejectRequest(id, { reason: "Application rejected by administrator." });
       alert(`Shop application for "${shopName || 'Merchant'}" rejected.`);
+      setStatusTab('rejected');
       fetchRequests();
     } catch (err) {
       alert("Failed to reject: " + (err.response?.data?.detail || err.message));
