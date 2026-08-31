@@ -344,6 +344,12 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
 async def shopkeeper_dashboard(current_user: dict = Depends(require_shopkeeper)):
     db = get_db()
     shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
+    if not shop_id_str and current_user.get("email"):
+        user_email = (current_user.get("email") or "").lower()
+        shops_ref = list(db.collection("shops").where("email", "==", user_email).stream())
+        if shops_ref:
+            shop_id_str = shops_ref[0].id
+
     if not shop_id_str:
         return {
             "success": True,

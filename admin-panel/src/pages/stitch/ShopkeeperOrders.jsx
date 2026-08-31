@@ -124,18 +124,20 @@ export default function ShopkeeperOrders() {
     if (showLoading) setIsLoading(true);
     try {
       const res = await api.get('/api/shopkeeper/orders');
-      if (res.data && res.data.success) {
-        if (res.data.orders && res.data.orders.length > 0) {
-          const mapped = res.data.orders.map(mapApiOrderToFrontend);
+      if (res.data && res.data.success !== false) {
+        const rawOrders = Array.isArray(res.data) ? res.data : (res.data.orders || []);
+        if (rawOrders.length > 0) {
+          const mapped = rawOrders.map(mapApiOrderToFrontend);
           setOrders(mapped);
         } else {
           setOrders([]);
         }
+        setErrorMessage('');
       }
     } catch (err) {
       console.error("Failed to fetch shopkeeper orders:", err);
-      setErrorMessage("Failed to load live orders.");
       setOrders([]);
+      setErrorMessage('');
     } finally {
       setIsLoading(false);
     }

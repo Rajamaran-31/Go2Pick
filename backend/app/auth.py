@@ -142,6 +142,18 @@ async def get_current_user(
     if user.get("email", "").lower() == get_settings().ADMIN_EMAIL.lower():
         user["role"] = "super_admin"
 
+    # Ensure rajamaran32@gmail.com and approved shopkeepers have shopkeeper context
+    email_clean = (user.get("email") or "").lower()
+    if email_clean == "rajamaran32@gmail.com" or user.get("shopkeeperStatus") == "approved":
+        if user.get("role") != "super_admin":
+            user["role"] = "shopkeeper"
+        user["isShopkeeper"] = True
+        user["shopkeeperStatus"] = "approved"
+        user["shopkeeperDashboardEnabled"] = True
+        if not user.get("activeShopId"):
+            user["activeShopId"] = "shop-grany-groceries"
+            user["shop_id"] = "shop-grany-groceries"
+
     # Expose both _id and id for backwards compatibility in other modules
     user["_id"] = uid
     user["id"] = uid
@@ -149,22 +161,28 @@ async def get_current_user(
 
 
 async def require_customer(current_user: dict = Depends(get_current_user)) -> dict:
-    if current_user.get("role") not in ("customer", "shopkeeper", "super_admin"):
+    if current_user.get("isBlocked", False):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Customer access required"
+            detail="Your account has been blocked. Contact support."
         )
     return current_user
 
 
 async def require_shopkeeper(current_user: dict = Depends(get_current_user)) -> dict:
-    if current_user.get("role") == "super_admin":
+    email = (current_user.get("email") or "").lower()
+    if current_user.get("role") == "super_admin" or email == "rajamaran32@gmail.com":
+        current_user["isShopkeeper"] = True
+        current_user["shopkeeperStatus"] = "approved"
+        current_user["shopkeeperDashboardEnabled"] = True
+        if not current_user.get("activeShopId"):
+            current_user["activeShopId"] = "shop-grany-groceries"
+            current_user["shop_id"] = "shop-grany-groceries"
         return current_user
 
     is_sk = current_user.get("role") == "shopkeeper" or current_user.get("isShopkeeper", False) or current_user.get("shopkeeperStatus") == "approved"
     db = get_db()
     user_id = str(current_user["_id"])
-    email = (current_user.get("email") or "").lower()
 
     if not is_sk:
         try:
