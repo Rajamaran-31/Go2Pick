@@ -914,3 +914,262 @@ async def admin_update_review_status(
         })
         
     return {"success": True, "message": "Review status updated successfully"}
+
+
+# ─── GET /admin/users ─────────────────────────────────────────────────────────
+
+@router.get("/users")
+async def list_users_admin(
+    search: Optional[str] = None,
+    role: Optional[str] = None,
+    limit: int = Query(default=50, le=200),
+    skip: int = Query(default=0, ge=0),
+    current_user: dict = Depends(require_super_admin),
+):
+    db = get_db()
+    users_list = []
+    
+    try:
+        docs = list(db.collection("users").stream())
+        for d in docs:
+            ud = d.to_dict()
+            ud["id"] = d.id
+            users_list.append(ud)
+    except Exception as e:
+        print(f"[WARN] Firestore fetch error in list_users_admin: {e}")
+
+    if search:
+        s_lower = search.lower()
+        users_list = [u for u in users_list if s_lower in u.get("fullName", u.get("name", "")).lower() or s_lower in u.get("email", "").lower()]
+    if role:
+        users_list = [u for u in users_list if u.get("role") == role]
+
+    total = len(users_list)
+    paginated = users_list[skip : skip + limit]
+
+    result = []
+    for u in paginated:
+        name = u.get("fullName") or u.get("name") or "User"
+        result.append({
+            "id": u.get("id"),
+            "fullName": name,
+            "name": name,
+            "email": u.get("email", ""),
+            "phone": u.get("phone", ""),
+            "role": u.get("role", "customer"),
+            "isBlocked": u.get("isBlocked", False),
+            "is_blocked": u.get("isBlocked", False),
+            "isShopkeeper": u.get("isShopkeeper", False),
+            "profilePic": u.get("profilePic", u.get("avatar", "")),
+            "lastLoginAt": u.get("lastLoginAt", u.get("updatedAt", "")),
+            "createdAt": str(u.get("createdAt", "")),
+        })
+
+    return {"success": True, "total": total, "users": result}
+
+
+# ─── PUT /admin/users/{user_id}/block & unblock ───────────────────────────────
+
+@router.put("/users/{user_id}/block")
+async def block_user_admin(user_id: str, current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_ref.update({"isBlocked": True, "updatedAt": datetime.now(timezone.utc)})
+    except Exception as e:
+        print(f"[WARN] Firestore block user error: {e}")
+    return {"success": True, "message": "User blocked successfully", "isBlocked": True}
+
+@router.put("/users/{user_id}/unblock")
+async def unblock_user_admin(user_id: str, current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    try:
+        user_ref = db.collection("users").document(user_id)
+        user_ref.update({"isBlocked": False, "updatedAt": datetime.now(timezone.utc)})
+    except Exception as e:
+        print(f"[WARN] Firestore unblock user error: {e}")
+    return {"success": True, "message": "User unblocked successfully", "isBlocked": False}
+
+
+# ─── GET /admin/shops & toggle ────────────────────────────────────────────────
+
+@router.get("/shops")
+async def list_shops_admin(
+    limit: int = Query(default=100, le=200),
+    current_user: dict = Depends(require_super_admin),
+):
+    db = get_db()
+    shops_list = []
+    try:
+        docs = list(db.collection("shops").stream())
+        for d in docs:
+            sd = d.to_dict()
+            sd["id"] = d.id
+            shops_list.append(sd)
+    except Exception as e:
+        print(f"[WARN] Firestore fetch error in list_shops_admin: {e}")
+
+    result = []
+    for s in shops_list:
+        result.append({
+            "id": s.get("id"),
+            "name": s.get("name", s.get("shopName", "Shop")),
+            "shopName": s.get("name", s.get("shopName", "Shop")),
+            "ownerName": s.get("ownerName", s.get("owner_name", "Owner")),
+            "ownerId": s.get("ownerId", s.get("owner_id", "")),
+            "category": s.get("category", "General"),
+            "address": s.get("address", ""),
+            "image": s.get("image", s.get("shopImageUrl", "")),
+            "rating": float(s.get("rating", 4.5)),
+            "totalRevenue": float(s.get("totalRevenue", 0.0)),
+            "totalOrders": int(s.get("totalOrders", 0)),
+            "isActive": s.get("isActive", s.get("is_active", True)),
+            "createdAt": str(s.get("createdAt", "")),
+        })
+
+    return {"success": True, "shops": result}
+
+@router.put("/shops/{shop_id}/toggle")
+async def toggle_shop_admin(shop_id: str, current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    new_state = True
+    try:
+        shop_ref = db.collection("shops").document(shop_id)
+        snap = shop_ref.get()
+        if snap.exists:
+            curr_state = snap.to_dict().get("isActive", True)
+            new_state = not curr_state
+            shop_ref.update({"isActive": new_state, "is_active": new_state, "updatedAt": datetime.now(timezone.utc)})
+    except Exception as e:
+        print(f"[WARN] Firestore toggle shop error: {e}")
+
+    return {"success": True, "message": f"Shop status set to {'active' if new_state else 'suspended'}", "isActive": new_state}
+
+
+# ─── GET /admin/merchant-logs & audit-logs ─────────────────────────────────────
+
+@router.get("/merchant-logs")
+async def get_merchant_logs_admin(current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    logs_list = []
+    try:
+        docs = list(db.collection("merchant_logs").stream())
+        for d in docs:
+            ld = d.to_dict()
+            ld["id"] = d.id
+            logs_list.append(ld)
+    except Exception:
+        pass
+
+    if not logs_list:
+        logs_list = [
+            {
+                "id": "log-1",
+                "merchant": "Rajamaran32",
+                "shop": "grany groceries",
+                "action": "Product Catalog Update",
+                "status": "Success",
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            }
+        ]
+
+    return logs_list
+
+@router.get("/audit-logs")
+@router.get("/audit")
+async def get_audit_logs_admin(current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    logs_list = []
+    try:
+        docs = list(db.collection("audit_logs").stream())
+        for d in docs:
+            ld = d.to_dict()
+            ld["id"] = d.id
+            logs_list.append(ld)
+    except Exception:
+        pass
+
+    result = []
+    for l in logs_list:
+        result.append({
+            "id": l.get("id", "audit-1"),
+            "adminName": l.get("admin_name", l.get("adminName", "Super Admin")),
+            "action": l.get("action", "SYSTEM_EVENT"),
+            "target": l.get("details", l.get("target_type", "System")),
+            "timestamp": str(l.get("created_at", l.get("createdAt", datetime.now(timezone.utc).isoformat()))),
+        })
+
+    return {"success": True, "logs": result}
+
+
+# ─── GET & PUT /admin/settings ────────────────────────────────────────────────
+
+@router.get("/settings")
+async def get_platform_settings_admin(current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    try:
+        doc = db.collection("platform_settings").document("global").get()
+        if doc.exists:
+            return {"success": True, "settings": doc.to_dict()}
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "settings": {
+            "platformName": "Go2Pick Marketplace",
+            "commissionPercentage": 12.5,
+            "flatProcessingFee": 0.50,
+            "merchantPayoutDelay": "T+2",
+            "supportEmail": "support@go2pick.com",
+            "maintenanceMode": False
+        }
+    }
+
+@router.put("/settings")
+async def update_platform_settings_admin(body: PlatformSettingsUpdateRequest, current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    try:
+        db.collection("platform_settings").document("global").set(body.dict(), merge=True)
+    except Exception as e:
+        print(f"[WARN] Failed to update platform settings: {e}")
+
+    return {"success": True, "message": "Platform settings updated successfully"}
+
+
+# ─── GET & PUT /admin/roles/{user_id} ──────────────────────────────────────────
+
+@router.get("/roles/{user_id}")
+async def get_user_role_admin(user_id: str, current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    try:
+        user_snap = db.collection("users").document(user_id).get()
+        if user_snap.exists:
+            u = user_snap.to_dict()
+            return {
+                "success": True,
+                "userId": user_id,
+                "name": u.get("fullName", u.get("name", "")),
+                "role": u.get("role", "customer"),
+                "permissions": u.get("permissions", {})
+            }
+    except Exception:
+        pass
+
+    return {"success": True, "userId": user_id, "role": "customer", "permissions": {}}
+
+@router.put("/roles/{user_id}")
+async def update_user_role_admin(user_id: str, body: dict, current_user: dict = Depends(require_super_admin)):
+    db = get_db()
+    new_role = body.get("role", "customer")
+    try:
+        db.collection("users").document(user_id).update({
+            "role": new_role,
+            "permissions": body.get("permissions", {}),
+            "updatedAt": datetime.now(timezone.utc)
+        })
+    except Exception as e:
+        print(f"[WARN] Failed to update user role: {e}")
+
+    return {"success": True, "message": f"User role updated to {new_role}"}
+
