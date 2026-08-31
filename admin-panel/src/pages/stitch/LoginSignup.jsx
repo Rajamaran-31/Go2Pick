@@ -44,7 +44,7 @@ export default function LoginSignup() {
     if (lowerMsg.includes("invalid-email") || lowerMsg.includes("valid email")) {
       return "Please enter a valid email address.";
     }
-    if (lowerMsg.includes("user-not-found") || lowerMsg.includes("wrong-password") || lowerMsg.includes("invalid-credential") || lowerMsg.includes("incorrect")) {
+    if (lowerMsg.includes("user-not-found") || lowerMsg.includes("wrong-password") || lowerMsg.includes("invalid-credential") || lowerMsg.includes("incorrect") || lowerMsg.includes("invalid email or password")) {
       return "Incorrect email or password. Please try again.";
     }
     if (lowerMsg.includes("network-request-failed") || lowerMsg.includes("network error")) {

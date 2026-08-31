@@ -2,11 +2,15 @@ import axios from 'axios';
 import { auth } from '../firebase';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || '';
+const isLocalHost = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.hostname.startsWith('192.168.') || 
+                    window.location.hostname.startsWith('10.') || 
+                    window.location.hostname.endsWith('.local');
+
 export const API_BASE = (rawApiUrl && !rawApiUrl.includes('onrender.com'))
   ? rawApiUrl
-  : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
-    : 'https://go2pick-backend.vercel.app');
+  : (isLocalHost ? `http://${window.location.hostname}:8000` : 'https://go2pick-backend.vercel.app');
 
 export const getImageUrl = (url, fallback = '') => {
   if (!url) return fallback;
