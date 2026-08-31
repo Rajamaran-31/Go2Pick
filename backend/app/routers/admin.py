@@ -77,13 +77,19 @@ async def list_applications(
 
     # 2. Merge with memory store applications
     mem_apps = get_all_applications(status)
-    existing_ids = {a.get("id") for a in apps_list}
     for ma in mem_apps:
-        if ma.get("id") not in existing_ids:
-            apps_list.append(ma)
+        apps_list.append(ma)
 
-    total = len(apps_list)
-    paginated = apps_list[skip : skip + limit]
+    seen_ids = set()
+    unique_apps = []
+    for app in apps_list:
+        aid = app.get("id")
+        if aid and aid not in seen_ids:
+            seen_ids.add(aid)
+            unique_apps.append(app)
+
+    total = len(unique_apps)
+    paginated = unique_apps[skip : skip + limit]
 
     result = []
     for app in paginated:
