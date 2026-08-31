@@ -6,7 +6,7 @@ export default function ShopRegistration() {
   const navigate = useNavigate();
   
   useEffect(() => {
-    const token = localStorage.getItem('picku_token') || localStorage.getItem('token') || localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token');
+    const token = localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
     if (!token) {
       alert('You must be logged in to register a shop. Redirecting to login...');
       navigate('/login');
@@ -34,7 +34,7 @@ export default function ShopRegistration() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('picku_token') || localStorage.getItem('token') || localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token');
+      const token = localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
       if (!token) {
         alert('You must be logged in to submit an application.');
         navigate('/login');

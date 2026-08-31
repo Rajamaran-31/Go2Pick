@@ -10,7 +10,7 @@ export const AppProvider = ({ children }) => {
   usePushNotifications();
   const [isShopApproved, setIsShopApproved] = useState(false);
   const [isShopkeeperMode, setIsShopkeeperMode] = useState(() => {
-    return localStorage.getItem('picku_mode') === 'shopkeeper';
+    return localStorage.getItem('go2pick_mode') === 'shopkeeper';
   });
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -20,7 +20,7 @@ export const AppProvider = ({ children }) => {
   const setShopkeeperMode = (val) => {
     setIsShopkeeperMode(val);
     const mode = val ? 'shopkeeper' : 'customer';
-    localStorage.setItem('picku_mode', mode);
+    localStorage.setItem('go2pick_mode', mode);
     if (user) {
       setUser({ ...user, activeMode: mode, currentMode: mode });
     }
@@ -35,7 +35,7 @@ export const AppProvider = ({ children }) => {
       const mode = user.currentMode || user.activeMode || 'customer';
       const isShopMode = mode === 'shopkeeper';
       setIsShopkeeperMode(isShopMode);
-      localStorage.setItem('picku_mode', isShopMode ? 'shopkeeper' : 'customer');
+      localStorage.setItem('go2pick_mode', isShopMode ? 'shopkeeper' : 'customer');
     }
   }, [user]);
 
@@ -61,7 +61,7 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const refreshNotifications = () => {
-    const userToken = localStorage.getItem('picku_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
+    const userToken = localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
     if (!userToken) return Promise.resolve([]);
     return api.get('/api/notifications')
       .then(res => {
@@ -82,7 +82,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const markAllNotificationsAsRead = () => {
-    const userToken = localStorage.getItem('picku_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
+    const userToken = localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
     if (!userToken) return Promise.resolve();
 
     setUnreadCount(0);
@@ -96,11 +96,11 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     // We already have interceptors in api.js handling token, but let's check if we have one to avoid unnecessary calls
-    const userToken = localStorage.getItem('picku_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
+    const userToken = localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token') || localStorage.getItem('token');
     
     if (userToken) {
       // Ensure the token is set in api interceptor if not already
-      localStorage.setItem('picku_token', userToken);
+      localStorage.setItem('go2pick_token', userToken);
 
       // Fetch shopkeeper status
       api.get('/api/shopkeeper/status')

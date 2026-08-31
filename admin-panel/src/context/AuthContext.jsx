@@ -13,8 +13,8 @@ export function AuthProvider({ children }) {
   const login = (tokenValue, userData) => {
     localStorage.setItem('admin_token', tokenValue);
     localStorage.setItem('admin_user', JSON.stringify(userData));
-    localStorage.setItem('picku_token', tokenValue);
-    localStorage.setItem('picku_user', JSON.stringify(userData));
+    localStorage.setItem('go2pick_token', tokenValue);
+    localStorage.setItem('go2pick_user', JSON.stringify(userData));
     setToken(tokenValue);
     setUser(userData);
   };
@@ -22,9 +22,9 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
-    localStorage.removeItem('picku_token');
-    localStorage.removeItem('picku_user');
-    localStorage.removeItem('picku_mode');
+    localStorage.removeItem('go2pick_token');
+    localStorage.removeItem('go2pick_user');
+    localStorage.removeItem('go2pick_mode');
     setToken(null);
     setUser(null);
     auth.signOut().catch(e => console.error("Firebase signout error:", e));
@@ -35,8 +35,8 @@ export function AuthProvider({ children }) {
     let authListenerTriggered = false;
 
     const handleLocalFallback = async () => {
-      const savedToken = localStorage.getItem('admin_token') || localStorage.getItem('picku_token');
-      const savedUser = localStorage.getItem('admin_user') || localStorage.getItem('picku_user');
+      const savedToken = localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token');
+      const savedUser = localStorage.getItem('admin_user') || localStorage.getItem('go2pick_user');
 
       if (savedToken) {
         try {
@@ -48,13 +48,13 @@ export function AuthProvider({ children }) {
             if (isMounted) {
               setToken(savedToken);
               setUser(userData);
-              console.log("DEBUG [AuthContext]: legacy local session restored");
+              console.log("DEBUG [AuthContext]: local session restored");
             }
           } else {
             if (isMounted) logout();
           }
         } catch (err) {
-          console.error("DEBUG [AuthContext]: legacy session validation failed:", err.message);
+          console.error("DEBUG [AuthContext]: session validation failed:", err.message);
           if (isMounted) logout();
         }
       } else {
@@ -63,7 +63,6 @@ export function AuthProvider({ children }) {
       if (isMounted) setLoading(false);
     };
 
-    // We set up a timeout to handle fallback in case Firebase Auth doesn't trigger onAuthStateChanged quickly
     const fallbackTimeout = setTimeout(async () => {
       if (!authListenerTriggered) {
         console.log("DEBUG [AuthContext]: Firebase auth listener timeout, checking local fallback");
@@ -87,9 +86,9 @@ export function AuthProvider({ children }) {
              const userData = res.data.user || res.data;
              if (isMounted) {
                localStorage.setItem('admin_token', tokenValue);
-               localStorage.setItem('picku_token', tokenValue);
+               localStorage.setItem('go2pick_token', tokenValue);
                localStorage.setItem('admin_user', JSON.stringify(userData));
-               localStorage.setItem('picku_user', JSON.stringify(userData));
+               localStorage.setItem('go2pick_user', JSON.stringify(userData));
                setToken(tokenValue);
                setUser(userData);
                console.log("DEBUG [AuthContext]: Firebase auth restored successfully");
@@ -117,7 +116,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshUser = async () => {
-    const activeToken = token || localStorage.getItem('admin_token') || localStorage.getItem('picku_token');
+    const activeToken = token || localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token');
     if (activeToken) {
       try {
         const res = await api.get('/api/auth/me', {
@@ -126,7 +125,7 @@ export function AuthProvider({ children }) {
         if (res.data) {
           const userData = res.data.user || res.data;
           localStorage.setItem('admin_user', JSON.stringify(userData));
-          localStorage.setItem('picku_user', JSON.stringify(userData));
+          localStorage.setItem('go2pick_user', JSON.stringify(userData));
           setUser(userData);
           return userData;
         }
@@ -137,10 +136,9 @@ export function AuthProvider({ children }) {
     return null;
   };
 
-  // Switch mode persistence
   const updateUser = (newUserData) => {
     localStorage.setItem('admin_user', JSON.stringify(newUserData));
-    localStorage.setItem('picku_user', JSON.stringify(newUserData));
+    localStorage.setItem('go2pick_user', JSON.stringify(newUserData));
     setUser(newUserData);
   };
 
