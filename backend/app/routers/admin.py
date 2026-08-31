@@ -215,17 +215,41 @@ async def approve_application(application_id: str, current_user: dict = Depends(
         shop_ref.set(shop_doc)
 
         applicant_id = app.get("applicantId", app.get("userId"))
+        applicant_email = (app.get("email") or app.get("applicantEmail") or "").lower()
+        user_docs = []
+
         if applicant_id:
-            db.collection("users").document(applicant_id).update({
-                "isShopkeeper": True,
-                "shopkeeperStatus": "approved",
-                "shopkeeperDashboardEnabled": True,
-                "activeShopId": shop_id,
-                "shop_id": shop_id,
-                "updatedAt": now,
-            })
             try:
-                await notify_shopkeeper_approved(applicant_id, app.get("shopName", ""))
+                db.collection("users").document(applicant_id).update({
+                    "isShopkeeper": True,
+                    "shopkeeperStatus": "approved",
+                    "shopkeeperDashboardEnabled": True,
+                    "activeShopId": shop_id,
+                    "shop_id": shop_id,
+                    "updatedAt": now,
+                })
+            except Exception as e_id:
+                print(f"[WARN] Failed to update user by applicant_id {applicant_id}: {e_id}")
+
+        if applicant_email:
+            try:
+                user_docs = list(db.collection("users").where("email", "==", applicant_email).stream())
+                for ud in user_docs:
+                    db.collection("users").document(ud.id).update({
+                        "isShopkeeper": True,
+                        "shopkeeperStatus": "approved",
+                        "shopkeeperDashboardEnabled": True,
+                        "activeShopId": shop_id,
+                        "shop_id": shop_id,
+                        "updatedAt": now,
+                    })
+            except Exception as e_em:
+                print(f"[WARN] Failed to update user by email {applicant_email}: {e_em}")
+
+        target_uid = applicant_id or (user_docs[0].id if user_docs else None)
+        if target_uid:
+            try:
+                await notify_shopkeeper_approved(target_uid, app.get("shopName", ""))
             except Exception as notif_e:
                 print(f"[WARN] Failed to notify shopkeeper: {notif_e}")
     except Exception as fe2:

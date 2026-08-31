@@ -214,6 +214,14 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
     shops_ref = db.collection("shops").where("ownerId", "==", user_id).stream()
     shops = list(shops_ref)
 
+    user_email = (current_user.get("email") or "").lower()
+    if not shops and user_email:
+        shops_ref = db.collection("shops").where("email", "==", user_email).stream()
+        shops = list(shops_ref)
+        if not shops:
+            shops_ref = db.collection("shops").where("businessEmail", "==", user_email).stream()
+            shops = list(shops_ref)
+
     # Return the first active approved shop
     active_shops = [s for s in shops if s.to_dict().get("isActive") and s.to_dict().get("isApproved")]
     shop_snap = active_shops[0] if active_shops else (shops[0] if shops else None)
@@ -240,6 +248,12 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
         if not apps:
             apps_ref = db.collection("shopkeeper_applications")\
                          .where("userId", "==", user_id)\
+                         .where("status", "==", "approved").stream()
+            apps = list(apps_ref)
+
+        if not apps and user_email:
+            apps_ref = db.collection("shopkeeper_applications")\
+                         .where("email", "==", user_email)\
                          .where("status", "==", "approved").stream()
             apps = list(apps_ref)
 
