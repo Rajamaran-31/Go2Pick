@@ -8,6 +8,18 @@ export const API_BASE = (rawApiUrl && !rawApiUrl.includes('onrender.com'))
     ? 'http://localhost:8000'
     : 'https://go2pick-backend.vercel.app');
 
+export const getImageUrl = (url, fallback = '') => {
+  if (!url) return fallback;
+  if (typeof url !== 'string') return fallback;
+  const trimmed = url.trim();
+  if (!trimmed) return fallback;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('blob:') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  const cleanUrl = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${API_BASE}${cleanUrl}`;
+};
+
 const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },

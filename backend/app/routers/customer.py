@@ -40,6 +40,8 @@ class FrontendCreateOrderRequest(BaseModel):
 
 
 def _shop_response(shop: dict) -> dict:
+    logo_val = shop.get("image") or shop.get("imageUrl") or shop.get("shopImageUrl") or shop.get("logo") or shop.get("logoUrl") or ""
+    cover_val = shop.get("coverImageUrl") or shop.get("coverImage") or shop.get("banner") or shop.get("bannerImage") or logo_val
     return {
         "id": str(shop.get("_id", shop.get("id", ""))),
         "name": shop.get("name", shop.get("shopName", "")),
@@ -47,9 +49,10 @@ def _shop_response(shop: dict) -> dict:
         "category": shop.get("category", ""),
         "address": shop.get("address", ""),
         "phone": shop.get("phone"),
-        "image": resolve_static_url(shop.get("image")),
-        "imageUrl": resolve_static_url(shop.get("imageUrl")),
-        "coverImageUrl": resolve_static_url(shop.get("coverImageUrl")),
+        "image": resolve_static_url(logo_val),
+        "imageUrl": resolve_static_url(logo_val),
+        "coverImageUrl": resolve_static_url(cover_val),
+        "coverImage": resolve_static_url(cover_val),
         "isActive": shop.get("isActive", shop.get("is_active", True)),
         "is_active": shop.get("is_active", shop.get("isActive", True)),
         "isApproved": shop.get("isApproved", shop.get("is_shop_approved", True)),

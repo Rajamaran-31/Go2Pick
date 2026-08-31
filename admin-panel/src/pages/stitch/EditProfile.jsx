@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { API_BASE } from '../../services/api';
+import api, { API_BASE, getImageUrl } from '../../services/api';
 
 const DEFAULT_AVATAR = "https://lh3.googleusercontent.com/aida-public/AB6AXuAZG6KrovJxIHiZxn6FYi-NfLd92btdlcT_SjW3u-uWhD0duAmbzP1cFu05cnYpo5wi36l6mdjCFFvswhoDyez2YvP65n-ZpsVHqqDBdgr0N5BsOzM90bT4PTGam_rSTXFnCoBsMAvGf2sXYDKi1HTx5TMBHRh5QGP5TOkTAcc3hNQQlrXFNFb8SIJpNRL5AhkqEnve_A4Eoc3aWRZkdzEEbLEvbiBWc0we4WkkeKi-sITtbnuvyDgPbij3uMw-_dqyZqOpdxyGh7x9";
 
@@ -86,9 +86,7 @@ export default function EditProfile() {
     );
   }
 
-  const profileImageSrc = formData.avatar
-    ? (formData.avatar.startsWith('http') ? formData.avatar : `${API_BASE}${formData.avatar}`)
-    : DEFAULT_AVATAR;
+  const profileImageSrc = getImageUrl(formData.avatar, DEFAULT_AVATAR);
 
   return (
     <div className="bg-surface min-h-screen pb-safe">
@@ -114,6 +112,7 @@ export default function EditProfile() {
               alt="Profile" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
               src={profileImageSrc} 
+              onError={(e) => { e.target.onerror = null; e.target.src = DEFAULT_AVATAR; }}
             />
             <button className="absolute bottom-0 right-0 bg-primary text-on-primary w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-[18px]">photo_camera</span>

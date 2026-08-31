@@ -6,7 +6,7 @@ from firebase_admin import auth
 from app.database import get_db
 from app.config import get_settings
 from app.auth import get_current_user, create_access_token
-from app.utils import to_object_id
+from app.utils import to_object_id, resolve_static_url
 from app.validators import is_valid_email, is_strong_password
 from app.schemas import (
     SignupRequest, VerifyEmailRequest, ResendOtpRequest,
@@ -34,6 +34,8 @@ def _user_to_response(user: dict) -> UserResponse:
     else:
         permissions = ["browse", "checkout"]
 
+    prof_img = user.get("profileImage") or user.get("avatar")
+
     return UserResponse(
         id=user_id,
         fullName=user.get("fullName") or user.get("name") or "",
@@ -46,7 +48,7 @@ def _user_to_response(user: dict) -> UserResponse:
         shopkeeperDashboardEnabled=user.get("shopkeeperDashboardEnabled", False),
         activeShopId=str(user["activeShopId"]) if user.get("activeShopId") else None,
         currentMode=user.get("currentMode", "customer"),
-        profileImage=user.get("profileImage", user.get("avatar")),
+        profileImage=resolve_static_url(prof_img),
         isBlocked=user.get("isBlocked", False),
         createdAt=user.get("createdAt"),
         permissions=permissions,
@@ -301,7 +303,7 @@ async def login(body: LoginRequest):
     if user.get("role") == "customer" and not user.get("isEmailVerified", False):
         raise HTTPException(status_code=403, detail="Please verify your email address first.")
 
-    return TokenResponse(access_token=id_token, user=_user_to_response(user))
+    return TokenResponse(access_token=id_token or "", user=_user_to_response(user))
 
 
 # ─── POST /auth/firebase-login ────────────────────────────────────────────────
@@ -487,7 +489,7 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
             )
             
         # Repair user document automatically if Condition B is true
-        if cond_b:
+        if cond_b and active_shop is not None:
             print(f"DEBUG [Switch Mode] Repairing user document in DB...")
             db.collection("users").document(user_id).update({
                 "isShopkeeper": True,

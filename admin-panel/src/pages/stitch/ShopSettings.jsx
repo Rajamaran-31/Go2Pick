@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import api from '../../services/api';
+import api, { getImageUrl } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ShopSettings() {
@@ -338,7 +338,7 @@ export default function ShopSettings() {
     }
   }} 
 />
-<img className="w-full h-full object-cover" data-alt="A wide, cinematic shot of a beautifully curated lifestyle boutique storefront." src={coverPreview || shop?.coverImageUrl || shop?.coverImage || "https://lh3.googleusercontent.com/aida-public/AB6AXuBU3IS4uAo8mH7cTFW7jVk4gq3dhYn4LGM4HH-J2OmmDV4eJoi2peyxPswN1OKzKYvHMLd9T792nufl8YMbU4bwhjNYCAXS4miT_T-bkbEI50Nnain5kfQTXKqJWTnkZclS5DTMVI3gIlfUmNNwHk_cbR_aZ4gf68XEBgcn80QPc7IFYsrR5NDadhzHnSFKKZWqIfw5vJDl8hTxx5EQilELoPcoC7UAnVva6AkGpltE6xC3U-w8tuyDiB-ME0Z8twSCJlzZKAcnkBFU"}/>
+<img className="w-full h-full object-cover" data-alt="A wide, cinematic shot of a beautifully curated lifestyle boutique storefront." src={coverPreview || getImageUrl(shop?.coverImageUrl || shop?.coverImage, "https://lh3.googleusercontent.com/aida-public/AB6AXuBU3IS4uAo8mH7cTFW7jVk4gq3dhYn4LGM4HH-J2OmmDV4eJoi2peyxPswN1OKzKYvHMLd9T792nufl8YMbU4bwhjNYCAXS4miT_T-bkbEI50Nnain5kfQTXKqJWTnkZclS5DTMVI3gIlfUmNNwHk_cbR_aZ4gf68XEBgcn80QPc7IFYsrR5NDadhzHnSFKKZWqIfw5vJDl8hTxx5EQilELoPcoC7UAnVva6AkGpltE6xC3U-w8tuyDiB-ME0Z8twSCJlzZKAcnkBFU")}/>
 <div className="absolute bottom-4 right-4">
   <button onClick={() => setShowCoverMenu(!showCoverMenu)} className="bg-surface/90 backdrop-blur-sm p-2 rounded-full shadow-md text-primary hover:bg-white transition-colors z-10 relative">
     <span className="material-symbols-outlined">edit_square</span>
@@ -359,7 +359,7 @@ export default function ShopSettings() {
 <div className="relative group">
 <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center relative">
 {logoPreview || shop?.imageUrl || shop?.shopImageUrl || shop?.image ? (
-  <img alt="Logo" className="w-full h-full object-contain" src={logoPreview || shop.imageUrl || shop.shopImageUrl || shop.image}/>
+  <img alt="Logo" className="w-full h-full object-contain" src={logoPreview || getImageUrl(shop?.imageUrl || shop?.shopImageUrl || shop?.image)}/>
 ) : (
   <div className="w-full h-full bg-surface-container flex items-center justify-center text-on-surface-variant">
     <span className="material-symbols-outlined text-[48px]">storefront</span>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import api, { categoriesAPI, API_BASE } from '../../services/api';
+import api, { categoriesAPI, API_BASE, getImageUrl } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getShopTimeDisplay } from '../../utils/timeFormat';
 
@@ -497,8 +497,9 @@ export default function CustomerHome() {
                           <div className="h-16 w-20 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
                             <img 
                               className="h-full w-full object-cover" 
-                              src={shop.coverImageUrl || shop.image || getFallbackImage(shop.category)} 
+                              src={getImageUrl(shop.coverImageUrl || shop.image || shop.imageUrl, getFallbackImage(shop.category))} 
                               alt={shop.name} 
+                              onError={(e) => { e.target.onerror = null; e.target.src = getFallbackImage(shop.category); }}
                             />
                           </div>
                           <div className="overflow-hidden">
@@ -665,9 +666,10 @@ export default function CustomerHome() {
                           <div className="h-36 w-full overflow-hidden relative bg-slate-100">
                             <img 
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                              src={shop.coverImageUrl || shop.image || fallbackImg} 
+                              src={getImageUrl(shop.coverImageUrl || shop.image || shop.imageUrl, fallbackImg)} 
                               alt={shop.name}
                               loading="lazy"
+                              onError={(e) => { e.target.onerror = null; e.target.src = fallbackImg; }}
                             />
                             <span className={`absolute top-3 right-3 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm ${shop.isOpenStatus ? 'bg-success-green/80' : 'bg-error-red/80'}`}>
                               {shop.isOpenStatus ? 'Open' : 'Closed'}
@@ -678,9 +680,10 @@ export default function CustomerHome() {
                             <div className="absolute -top-6 right-4 h-12 w-12 rounded-full border-2 border-white shadow-sm overflow-hidden bg-white">
                               <img 
                                 className="h-full w-full object-cover" 
-                                src={shop.image || fallbackImg} 
+                                src={getImageUrl(shop.imageUrl || shop.image, fallbackImg)} 
                                 alt="Logo"
                                 loading="lazy"
+                                onError={(e) => { e.target.onerror = null; e.target.src = fallbackImg; }}
                               />
                             </div>
                             <div className="pr-12">
@@ -749,9 +752,10 @@ export default function CustomerHome() {
                             <div className="h-36 w-full overflow-hidden relative bg-slate-100">
                               <img 
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                                src={shop.coverImageUrl || shop.image || fallbackImg} 
+                                src={getImageUrl(shop.coverImageUrl || shop.image || shop.imageUrl, fallbackImg)} 
                                 alt={shop.name}
                                 loading="lazy"
+                                onError={(e) => { e.target.onerror = null; e.target.src = fallbackImg; }}
                               />
                               {shop.distance !== null && (
                                 <span className="absolute top-3 left-3 bg-slate-900/70 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">
@@ -769,9 +773,10 @@ export default function CustomerHome() {
                               <div className="absolute -top-6 right-4 h-12 w-12 rounded-full border-2 border-white shadow-sm overflow-hidden bg-white">
                                 <img 
                                   className="h-full w-full object-cover" 
-                                  src={shop.image || fallbackImg} 
+                                  src={getImageUrl(shop.imageUrl || shop.image, fallbackImg)} 
                                   alt="Logo"
                                   loading="lazy"
+                                  onError={(e) => { e.target.onerror = null; e.target.src = fallbackImg; }}
                                 />
                               </div>
 

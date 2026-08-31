@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import api, { API_BASE } from '../../services/api';
+import api, { API_BASE, getImageUrl } from '../../services/api';
 import { getShopTimeDisplay } from '../../utils/timeFormat';
 
 const defaultCategoryImages = {
@@ -104,7 +104,7 @@ export default function SearchExplore() {
 ) : trendingShops.map(shop => (
   <div key={shop.id} onClick={() => navigate(`/shop-details?id=${shop.id}`)} className="min-w-[280px] bg-surface rounded-2xl shadow-sm border border-border-gray overflow-hidden group cursor-pointer">
     <div className="h-32 overflow-hidden relative">
-      <img alt={shop.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={shop.coverImageUrl || shop.imageUrl || shop.image || 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=500&auto=format&fit=crop&q=60'}/>
+      <img alt={shop.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={getImageUrl(shop.coverImageUrl || shop.imageUrl || shop.image, 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=500&auto=format&fit=crop&q=60')} onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=500&auto=format&fit=crop&q=60'; }}/>
       <div className="absolute top-2 right-2 bg-surface/90 backdrop-blur-md px-base rounded-lg flex items-center">
         <span className="material-symbols-outlined text-warning-amber text-sm mr-1" style={{'fontVariationSettings': "'FILL' 1"}}>star</span>
         <span className="font-label-sm">{shop.rating ? parseFloat(shop.rating).toFixed(1) : '—'}</span>

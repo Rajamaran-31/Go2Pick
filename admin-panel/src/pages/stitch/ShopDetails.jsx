@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import api, { API_BASE, getImageUrl } from '../../services/api';
 import { formatIndianTime } from '../../utils/timeFormat';
 
 const defaultShopImage = "https://placehold.co/800x400?text=Shop+Cover";
@@ -241,7 +241,7 @@ export default function ShopDetails() {
         <div className="px-6">
 
 <div className="relative w-full h-[300px] overflow-hidden">
-<img alt={shop.name} className="shop-cover-image w-full h-full object-cover" src={shop.coverImageUrl || shop.imageUrl || shop.shopImageUrl || defaultShopImage}/>
+<img alt={shop.name} className="shop-cover-image w-full h-full object-cover" src={getImageUrl(shop.coverImageUrl || shop.imageUrl || shop.shopImageUrl || shop.image, defaultShopImage)} onError={(e) => { e.target.onerror = null; e.target.src = defaultShopImage; }}/>
 <div className="absolute inset-0 bg-gradient-to-t from-on-surface/60 to-transparent"></div>
 <div className="absolute bottom-md left-md right-md text-on-primary">
 <div className="flex items-center gap-xs mb-xs">

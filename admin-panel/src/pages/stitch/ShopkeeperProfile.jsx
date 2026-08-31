@@ -1,7 +1,7 @@
 import { useAppContext } from '../../context/AppContext';
 import React, { useState, useEffect } from 'react';
 import { Link , useLocation, useNavigate} from 'react-router-dom';
-import api from '../../services/api';
+import api, { getImageUrl } from '../../services/api';
 import { getShopTimeDisplay } from '../../utils/timeFormat';
 
 export default function ShopkeeperProfile() {
@@ -144,7 +144,7 @@ export default function ShopkeeperProfile() {
 <div className="relative">
 <div className="w-24 h-24 md:w-32 md:w-32 rounded-2xl overflow-hidden border-4 border-marketplace-orange/10">
 {shop?.imageUrl || shop?.shopImageUrl || shop?.image ? (
-  <img className="w-full h-full object-cover" src={shop.imageUrl || shop.shopImageUrl || shop.image}/>
+  <img className="w-full h-full object-cover" src={getImageUrl(shop.imageUrl || shop.shopImageUrl || shop.image)}/>
 ) : (
   <div className="w-full h-full bg-surface-container flex items-center justify-center text-on-surface-variant">
     <span className="material-symbols-outlined text-[48px]">storefront</span>
