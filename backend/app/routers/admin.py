@@ -253,6 +253,7 @@ async def approve_application(application_id: str, current_user: dict = Depends(
                     "shopkeeperDashboardEnabled": True,
                     "activeShopId": shop_id,
                     "shop_id": shop_id,
+                    "role": "shopkeeper",
                     "updatedAt": now,
                 })
             except Exception as e_id:
@@ -268,17 +269,28 @@ async def approve_application(application_id: str, current_user: dict = Depends(
                         "shopkeeperDashboardEnabled": True,
                         "activeShopId": shop_id,
                         "shop_id": shop_id,
+                        "role": "shopkeeper",
                         "updatedAt": now,
                     })
             except Exception as e_em:
                 print(f"[WARN] Failed to update user by email {applicant_email}: {e_em}")
 
-        target_uid = applicant_id or (user_docs[0].id if user_docs else None)
-        if target_uid:
+        # Send notification to applicant ID and all email-matched user accounts
+        notified_uids = set()
+        if applicant_id:
             try:
-                await notify_shopkeeper_approved(target_uid, app.get("shopName", ""))
+                await notify_shopkeeper_approved(applicant_id, app.get("shopName", ""))
+                notified_uids.add(str(applicant_id))
             except Exception as notif_e:
-                print(f"[WARN] Failed to notify shopkeeper: {notif_e}")
+                print(f"[WARN] Failed to notify shopkeeper by id: {notif_e}")
+
+        for ud in user_docs:
+            if ud.id not in notified_uids:
+                try:
+                    await notify_shopkeeper_approved(ud.id, app.get("shopName", ""))
+                    notified_uids.add(ud.id)
+                except Exception as notif_e:
+                    print(f"[WARN] Failed to notify shopkeeper by email doc id: {notif_e}")
     except Exception as fe2:
         print(f"[WARN] Firestore shop creation error: {fe2}")
 
