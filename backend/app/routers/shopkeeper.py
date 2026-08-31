@@ -29,45 +29,49 @@ async def apply_as_shopkeeper(
     body: ShopkeeperApplicationRequest,
     current_user: dict = Depends(get_current_user),
 ):
+    from app.memory_store import add_application
     db = get_db()
     user_id = str(current_user["_id"])
 
     now = datetime.now(timezone.utc)
     app_id = f"app-{abs(hash(user_id + str(now)))}"
 
+    app_doc = {
+        "id": app_id,
+        "applicantId": user_id,
+        "applicantName": current_user.get("fullName", current_user.get("name", body.ownerName or "Unknown")),
+        "applicantEmail": current_user.get("email", body.email.lower()),
+        "shopName": body.shopName,
+        "category": body.category,
+        "address": body.address,
+        "city": body.city,
+        "pincode": body.pincode,
+        "status": "pending",
+        "createdAt": now.isoformat(),
+        "shopImageUrl": None,
+        "businessProofUrl": body.businessProof,
+        "userId": user_id,
+        "ownerName": body.ownerName or current_user.get("fullName", "Unknown"),
+        "phone": body.phone,
+        "email": body.email.lower(),
+        "description": body.description,
+        "rejectionReason": None,
+        "submittedAt": now.isoformat(),
+        "reviewedAt": None,
+        "reviewedBy": None,
+    }
+
+    # Save to memory store first
+    add_application(app_doc)
+
     try:
-        # Generate the document reference first so we have the ID
         doc_ref = db.collection("shopkeeper_applications").document()
+        app_doc["id"] = doc_ref.id
         app_id = doc_ref.id
-        
-        app_doc = {
-            "id": app_id,
-            "applicantId": user_id,
-            "applicantName": current_user.get("fullName", current_user.get("name", "Unknown")),
-            "applicantEmail": current_user.get("email", body.email.lower()),
-            "shopName": body.shopName,
-            "category": body.category,
-            "address": body.address,
-            "city": body.city,
-            "pincode": body.pincode,
-            "status": "pending",
-            "createdAt": now,
-            "shopImageUrl": None,
-            "businessProofUrl": body.businessProof,
-            "userId": user_id,
-            "ownerName": body.ownerName,
-            "phone": body.phone,
-            "email": body.email.lower(),
-            "description": body.description,
-            "rejectionReason": None,
-            "submittedAt": now,
-            "reviewedAt": None,
-            "reviewedBy": None,
-        }
+        add_application(app_doc)
 
         doc_ref.set(app_doc)
 
-        # Update user status
         try:
             db.collection("users").document(user_id).update({
                 "shopkeeperStatus": "pending",

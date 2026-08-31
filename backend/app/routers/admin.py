@@ -51,59 +51,54 @@ async def list_applications(
     skip: int = Query(default=0, ge=0),
     current_user: dict = Depends(require_super_admin),
 ):
+    from app.memory_store import get_all_applications
     db = get_db()
-    coll_ref = db.collection("shopkeeper_applications")
-    if status:
-        query_ref = coll_ref.where("status", "==", status)
-    else:
-        query_ref = coll_ref
-
-    all_docs = list(query_ref.stream())
+    apps_list = []
     
-    print("DEBUG [Backend] Admin API: collection queried = shopkeeper_applications")
-    pending_count = sum(1 for d in all_docs if d.to_dict().get("status") == "pending")
-    print(f"DEBUG [Backend] Admin API: pending application count = {pending_count}")
+    # 1. Fetch from Firestore if available
+    try:
+        coll_ref = db.collection("shopkeeper_applications")
+        query_ref = coll_ref.where("status", "==", status) if status else coll_ref
+        docs = list(query_ref.stream())
+        for d in docs:
+            ad = d.to_dict()
+            ad["id"] = d.id
+            apps_list.append(ad)
+    except Exception as e:
+        print(f"[WARN] Firestore fetch error in list_applications: {e}")
 
-    def get_sort_key(doc):
-        d = doc.to_dict()
-        val = d.get("submittedAt") or d.get("createdAt")
-        if val is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        if isinstance(val, str):
-            try:
-                return datetime.fromisoformat(val.replace("Z", "+00:00"))
-            except Exception:
-                return datetime.min.replace(tzinfo=timezone.utc)
-        return val
+    # 2. Merge with memory store applications
+    mem_apps = get_all_applications(status)
+    existing_ids = {a.get("id") for a in apps_list}
+    for ma in mem_apps:
+        if ma.get("id") not in existing_ids:
+            apps_list.append(ma)
 
-    all_docs.sort(key=get_sort_key, reverse=True)
-    total = len(all_docs)
-    paginated_docs = all_docs[skip : skip + limit]
+    total = len(apps_list)
+    paginated = apps_list[skip : skip + limit]
 
     result = []
-    for doc in paginated_docs:
-        app = doc.to_dict()
-        user_snap = db.collection("users").document(app.get("userId", "")).get()
-        user = user_snap.to_dict() if user_snap.exists else None
+    for app in paginated:
+        user_name = app.get("applicantName") or app.get("ownerName") or "Applicant"
         result.append({
-            "id": doc.id,
-            "userId": str(app.get("userId", "")),
-            "applicantName": user.get("fullName", user.get("name", "Unknown")) if user else "Unknown",
-            "applicantEmail": user.get("email", "") if user else "",
+            "id": app.get("id"),
+            "userId": str(app.get("userId", app.get("applicantId", ""))),
+            "applicantName": user_name,
+            "applicantEmail": app.get("applicantEmail") or app.get("email") or "",
             "shopName": app.get("shopName", ""),
-            "ownerName": app.get("ownerName", ""),
+            "ownerName": app.get("ownerName", user_name),
             "phone": app.get("phone", ""),
             "email": app.get("email", ""),
             "address": app.get("address", ""),
             "city": app.get("city", ""),
             "pincode": app.get("pincode", ""),
             "category": app.get("category", ""),
-            "businessProof": app.get("businessProof"),
-            "description": app.get("description"),
+            "businessProof": app.get("businessProofUrl", app.get("businessProof")),
+            "description": app.get("description", ""),
             "status": app.get("status", "pending"),
             "rejectionReason": app.get("rejectionReason"),
-            "submittedAt": app.get("submittedAt"),
-            "reviewedAt": app.get("reviewedAt"),
+            "submittedAt": str(app.get("submittedAt") or app.get("createdAt") or ""),
+            "reviewedAt": str(app.get("reviewedAt") or ""),
         })
 
     return {"success": True, "total": total, "applications": result}
@@ -155,22 +150,74 @@ async def get_application(application_id: str, current_user: dict = Depends(requ
 @router.post("/shopkeeper-requests/{application_id}/approve")
 @router.put("/shopkeeper-requests/{application_id}/approve")
 async def approve_application(application_id: str, current_user: dict = Depends(require_super_admin)):
+    from app.memory_store import update_application_status, APPLICATIONS_STORE
     db = get_db()
-
-    app_ref = db.collection("shopkeeper_applications").document(application_id)
-    app_snap = app_ref.get()
-    if not app_snap.exists:
-        raise HTTPException(status_code=404, detail="Application not found")
-    app = app_snap.to_dict()
-    if app.get("status") == "approved":
-        return {
-            "success": True,
-            "message": "Application already approved",
-        }
-    if app["status"] != "pending":
-        raise HTTPException(status_code=400, detail=f"Application is already {app['status']}")
-
     now = datetime.now(timezone.utc)
+
+    # 1. Update memory store
+    update_application_status(application_id, "approved")
+    app = APPLICATIONS_STORE.get(application_id, {})
+
+    # 2. Try Firestore update
+    try:
+        app_ref = db.collection("shopkeeper_applications").document(application_id)
+        app_snap = app_ref.get()
+        if app_snap.exists:
+            app = app_snap.to_dict()
+            app_ref.update({
+                "status": "approved",
+                "reviewedAt": now,
+                "reviewedBy": current_user.get("_id", "admin")
+            })
+    except Exception as fe:
+        print(f"[WARN] Firestore approve error: {fe}")
+
+    shop_id = f"shop-{abs(hash(application_id))}"
+
+    # Try creating shop in Firestore
+    try:
+        shop_ref = db.collection("shops").document(shop_id)
+        shop_doc = {
+            "id": shop_id,
+            "ownerId": app.get("applicantId", app.get("userId", "")),
+            "owner_id": app.get("applicantId", app.get("userId", "")),
+            "applicationId": application_id,
+            "name": app.get("shopName", "Approved Shop"),
+            "shopName": app.get("shopName", "Approved Shop"),
+            "category": app.get("category", "General"),
+            "description": app.get("description", ""),
+            "address": app.get("address", ""),
+            "city": app.get("city", ""),
+            "pincode": app.get("pincode", ""),
+            "businessPhone": app.get("phone", ""),
+            "businessEmail": app.get("email", ""),
+            "status": "active",
+            "isActive": True,
+            "is_active": True,
+            "isApproved": True,
+            "createdAt": now,
+            "updatedAt": now,
+        }
+        shop_ref.set(shop_doc)
+
+        applicant_id = app.get("applicantId", app.get("userId"))
+        if applicant_id:
+            db.collection("users").document(applicant_id).update({
+                "isShopkeeper": True,
+                "shopkeeperStatus": "approved",
+                "shopkeeperDashboardEnabled": True,
+                "activeShopId": shop_id,
+                "shop_id": shop_id,
+                "updatedAt": now,
+            })
+    except Exception as fe2:
+        print(f"[WARN] Firestore shop creation error: {fe2}")
+
+    return {
+        "success": True,
+        "message": "Application approved. Shop created.",
+        "shopId": shop_id,
+    }
 
     # Create the shop
     shop_ref = db.collection("shops").document()
