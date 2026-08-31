@@ -262,7 +262,7 @@ async def login(body: LoginRequest):
             if not user_docs:
                 # Password check for default accounts or direct fallback
                 is_valid_password = False
-                if email_lower == settings.ADMIN_EMAIL.lower() or "admin" in email_lower or "rajamaran" in email_lower:
+                if email_lower == settings.ADMIN_EMAIL.lower() and body.password == settings.ADMIN_PASSWORD:
                     is_valid_password = True
                 elif email_lower.startswith("shop") and email_lower.endswith("@go2pick.com") and body.password == "Shop@123":
                     is_valid_password = True
@@ -273,7 +273,7 @@ async def login(body: LoginRequest):
                     raise HTTPException(status_code=401, detail="Invalid email or password")
                 
                 uid = f"user-{abs(hash(email_lower))}"
-                role = "super_admin" if (email_lower == settings.ADMIN_EMAIL.lower() or "admin" in email_lower or "rajamaran" in email_lower) else ("shopkeeper" if "shop" in email_lower else "customer")
+                role = "super_admin" if email_lower == settings.ADMIN_EMAIL.lower() else ("shopkeeper" if "shop" in email_lower else "customer")
                 user_data = {
                     "_id": uid,
                     "fullName": email_lower.split("@")[0].capitalize(),
@@ -316,7 +316,7 @@ async def login(body: LoginRequest):
             print(f"[WARN] Failed to fetch user doc from Firestore: {snap_err}")
 
         if not user:
-            role = "super_admin" if (email_lower == settings.ADMIN_EMAIL.lower() or "admin" in email_lower or "rajamaran" in email_lower) else "customer"
+            role = "super_admin" if email_lower == settings.ADMIN_EMAIL.lower() else "customer"
             user = {
                 "_id": uid or f"user-{abs(hash(email_lower))}",
                 "fullName": email_lower.split("@")[0].capitalize(),
@@ -348,7 +348,7 @@ async def login(body: LoginRequest):
     except Exception as exc:
         print(f"[WARN] Quota or database exception during login: {exc}")
         uid = f"user-{abs(hash(email_lower))}"
-        role = "super_admin" if (email_lower == settings.ADMIN_EMAIL.lower() or "admin" in email_lower or "rajamaran" in email_lower) else "customer"
+        role = "super_admin" if email_lower == settings.ADMIN_EMAIL.lower() else "customer"
         user_data = {
             "_id": uid,
             "fullName": email_lower.split("@")[0].capitalize(),
