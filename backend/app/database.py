@@ -47,18 +47,17 @@ class Database:
     def connect(cls):
         import json
         settings = get_settings()
-        creds_config = settings.FIREBASE_CREDENTIALS or settings.FIREBASE_CREDENTIALS_PATH
+        creds_config = (settings.FIREBASE_CREDENTIALS or settings.FIREBASE_CREDENTIALS_PATH or "").strip()
         
         try:
             if not firebase_admin._apps:
-                # Check if the credentials config is a raw JSON string (common in production environments like Render/Vercel)
-                creds_str = creds_config.strip() if creds_config else ""
-                if (creds_str.startswith('"') and creds_str.endswith('"')) or (creds_str.startswith("'") and creds_str.endswith("'")):
-                    creds_str = creds_str[1:-1].strip()
+                # Strip wrapping quotes if present
+                if (creds_config.startswith('"') and creds_config.endswith('"')) or (creds_config.startswith("'") and creds_config.endswith("'")):
+                    creds_config = creds_config[1:-1].strip()
 
-                if creds_str.startswith('{'):
+                if creds_config.startswith('{'):
                     print("Loading Firebase credentials from raw JSON environment variable...")
-                    cred_dict = json.loads(creds_str)
+                    cred_dict = json.loads(creds_config)
                     if "private_key" in cred_dict and isinstance(cred_dict["private_key"], str):
                         cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
                     cred = credentials.Certificate(cred_dict)
@@ -72,17 +71,17 @@ class Database:
                     cred = credentials.Certificate(resolved_path)
                 
                 firebase_admin.initialize_app(cred, {
-                    'storageBucket': settings.FIREBASE_STORAGE_BUCKET
+                    'storageBucket': getattr(settings, 'FIREBASE_STORAGE_BUCKET', 'go2pick-345bf.firebasestorage.app')
                 })
-            cls.db = firestore.client()
+
+            app_inst = firebase_admin.get_app()
+            cls.db = firestore.client(app=app_inst)
             print("Successfully connected to Firebase Cloud Firestore Database.")
         except Exception as e:
             cls.db = None
             print("\n" + "="*80)
             print("CRITICAL ERROR: Firebase Admin SDK could not be initialized.")
-            print(f"Credentials input length: {len(creds_config) if creds_config else 0}")
             print(f"Error details: {str(e)}")
-            print("The application will start, but database operations will fail.")
             print("="*80 + "\n")
 
     @classmethod
