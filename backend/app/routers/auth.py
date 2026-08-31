@@ -216,17 +216,32 @@ async def login(body: LoginRequest):
     id_token = None
     firebase_failed = False
     try:
-        res = requests.post(firebase_url, json={
-            "email": body.email.lower(),
-            "password": body.password,
-            "returnSecureToken": True
-        }, timeout=5)
-        if res.status_code != 200:
-             firebase_failed = True
-        else:
-             res_data = res.json()
-             uid = res_data["localId"]
-             id_token = res_data["idToken"]
+        try:
+            import requests
+            res = requests.post(firebase_url, json={
+                "email": body.email.lower(),
+                "password": body.password,
+                "returnSecureToken": True
+            }, timeout=5)
+            if res.status_code != 200:
+                firebase_failed = True
+            else:
+                res_data = res.json()
+                uid = res_data.get("localId")
+                id_token = res_data.get("idToken")
+        except ModuleNotFoundError:
+            import urllib.request
+            import json
+            req_data = json.dumps({
+                "email": body.email.lower(),
+                "password": body.password,
+                "returnSecureToken": True
+            }).encode('utf-8')
+            req = urllib.request.Request(firebase_url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                res_data = json.loads(resp.read().decode('utf-8'))
+                uid = res_data.get("localId")
+                id_token = res_data.get("idToken")
     except Exception as e:
         print(f"[WARN] Firebase Auth REST request failed: {e}")
         firebase_failed = True
