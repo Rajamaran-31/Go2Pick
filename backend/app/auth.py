@@ -68,41 +68,28 @@ async def get_current_user(
     token = credentials.credentials
     db = get_db()
     
-    try:
-        # 1. Try to verify as Firebase ID Token first
+    # 1. Try custom JWT decode first, then Firebase ID Token fallback
+    payload = decode_token(token)
+    if payload and "sub" in payload:
+        uid = payload["sub"]
+        decoded_token = {
+            "uid": uid,
+            "email": payload.get("email", ""),
+            "role": payload.get("role", "customer"),
+        }
+    else:
         try:
-            decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
-            uid = decoded_token.get("uid")
-            if not uid:
-                 raise ValueError("No uid key found in decoded Firebase token")
-        except Exception as fb_err:
-            if "has no \"kid\" claim" not in str(fb_err):
-                import traceback
-                print(f"Firebase token verification failed: {fb_err}")
-                traceback.print_exc()
-            # 2. Fallback to legacy JWT token verification (e.g. for seed / local E2E test scripts)
-            payload = decode_token(token)
-            if payload and "sub" in payload:
-                uid = payload["sub"]
-                decoded_token = {
-                    "uid": uid,
-                    "email": payload.get("email", ""),
-                    "role": payload.get("role", "customer"),
-                }
+            if firebase_admin._apps:
+                decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
+                uid = decoded_token.get("uid")
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=f"Authentication failed: {str(fb_err)}",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Firebase authentication failed: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+                raise ValueError("Firebase SDK not initialized")
+        except Exception as fb_err:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication failed. Please log in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     # Fetch user profile from Firestore
     user = None
