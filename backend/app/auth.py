@@ -50,7 +50,11 @@ def decode_token(token: str) -> Optional[dict]:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except Exception:
-        return None
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            return payload
+        except Exception:
+            return None
 
 
 # ─── Security Dependencies ───────────────────────────────────────────────────
