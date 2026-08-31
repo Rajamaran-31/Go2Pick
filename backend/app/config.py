@@ -14,9 +14,9 @@ class Settings(BaseSettings):
     FIREBASE_STORAGE_BUCKET: str = "go2pick-345bf.firebasestorage.app"
     FIREBASE_API_KEY: str = "AIzaSyC-yVxjHB9_sKuKPUsRv-x_yDXEudxnTII"
 
-    # Legacy configuration shims to prevent loading issues
-    MONGODB_URL: Optional[str] = None
-    DATABASE_NAME: Optional[str] = "Go2Pick"
+    # MongoDB Settings
+    MONGODB_URL: Optional[str] = "mongodb://rajamaran32:maran2007@ac-xvjluyj-shard-00-00.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-01.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-02.hobeyx3.mongodb.net:27017/?ssl=true&authSource=admin&retryWrites=true&w=majority"
+    DATABASE_NAME: Optional[str] = "go2pick"
 
     # JWT Settings (still available if needed)
     JWT_SECRET: str = "go2pick-super-secret-jwt-key-change-in-production"
