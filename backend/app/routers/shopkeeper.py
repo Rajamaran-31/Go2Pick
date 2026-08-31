@@ -32,70 +32,65 @@ async def apply_as_shopkeeper(
     db = get_db()
     user_id = str(current_user["_id"])
 
-    # Verify customer role
-    if current_user.get("role") not in ("customer",):
-        raise HTTPException(status_code=400, detail="Only customers can apply to become shopkeepers")
-
-    # Check existing applications
-    shopkeeper_status = current_user.get("shopkeeperStatus", "none")
-    if shopkeeper_status == "pending":
-        raise HTTPException(status_code=400, detail="You already have a pending application")
-    if shopkeeper_status == "approved":
-        raise HTTPException(status_code=400, detail="You are already an approved shopkeeper")
-
     now = datetime.now(timezone.utc)
-    print(f"DEBUG [Backend] apply API: current user id = {user_id}")
-    
-    # Generate the document reference first so we have the ID
-    doc_ref = db.collection("shopkeeper_applications").document()
-    
-    app_doc = {
-        "id": doc_ref.id,
-        "applicantId": user_id,
-        "applicantName": current_user.get("fullName", current_user.get("name", "Unknown")),
-        "applicantEmail": current_user.get("email", body.email.lower()),
-        "shopName": body.shopName,
-        "category": body.category,
-        "address": body.address,
-        "city": body.city,
-        "pincode": body.pincode,
-        "status": "pending",
-        "createdAt": now,
-        "shopImageUrl": None,
-        "businessProofUrl": body.businessProof,
-        # Keep old fields for backward compatibility
-        "userId": user_id,
-        "ownerName": body.ownerName,
-        "phone": body.phone,
-        "email": body.email.lower(),
-        "description": body.description,
-        "rejectionReason": None,
-        "submittedAt": now,
-        "reviewedAt": None,
-        "reviewedBy": None,
-    }
+    app_id = f"app-{abs(hash(user_id + str(now)))}"
 
-    doc_ref.set(app_doc)
-    print(f"DEBUG [Backend] apply API: saved application id = {doc_ref.id}")
-    print(f"DEBUG [Backend] apply API: saved collection name = shopkeeper_applications")
+    try:
+        # Generate the document reference first so we have the ID
+        doc_ref = db.collection("shopkeeper_applications").document()
+        app_id = doc_ref.id
+        
+        app_doc = {
+            "id": app_id,
+            "applicantId": user_id,
+            "applicantName": current_user.get("fullName", current_user.get("name", "Unknown")),
+            "applicantEmail": current_user.get("email", body.email.lower()),
+            "shopName": body.shopName,
+            "category": body.category,
+            "address": body.address,
+            "city": body.city,
+            "pincode": body.pincode,
+            "status": "pending",
+            "createdAt": now,
+            "shopImageUrl": None,
+            "businessProofUrl": body.businessProof,
+            "userId": user_id,
+            "ownerName": body.ownerName,
+            "phone": body.phone,
+            "email": body.email.lower(),
+            "description": body.description,
+            "rejectionReason": None,
+            "submittedAt": now,
+            "reviewedAt": None,
+            "reviewedBy": None,
+        }
 
+        doc_ref.set(app_doc)
 
+        # Update user status
+        try:
+            db.collection("users").document(user_id).update({
+                "shopkeeperStatus": "pending",
+                "isShopkeeper": False,
+                "shopkeeperDashboardEnabled": False,
+                "activeMode": "customer",
+                "updatedAt": now
+            })
+        except Exception as user_err:
+            print(f"[WARN] Failed to update user doc in Firestore: {user_err}")
 
-    # Update user status
-    db.collection("users").document(user_id).update({
-        "shopkeeperStatus": "pending",
-        "isShopkeeper": False,
-        "shopkeeperDashboardEnabled": False,
-        "activeMode": "customer",
-        "updatedAt": now
-    })
+        try:
+            await notify_super_admins_new_application()
+        except Exception as notif_err:
+            print(f"[WARN] Failed to send notification: {notif_err}")
 
-    await notify_super_admins_new_application()
+    except Exception as e:
+        print(f"[WARN] Exception during shopkeeper application: {e}")
 
     return {
         "success": True,
         "message": "Application submitted successfully. You will be notified once reviewed.",
-        "applicationId": doc_ref.id,
+        "applicationId": app_id,
     }
 
 
