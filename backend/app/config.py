@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
 
     class Config:
-        env_file = ".env"
+        env_file = ("backend/.env", ".env")
         extra = "allow"
 
 
