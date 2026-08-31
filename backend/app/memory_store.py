@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 
 # Global in-memory store to guarantee resilient operation even under database quota limits
 APPLICATIONS_STORE = {}
@@ -9,7 +10,7 @@ def add_application(app_dict: dict):
     APPLICATIONS_STORE[app_id] = app_dict
     return app_dict
 
-def get_all_applications(status: str = None):
+def get_all_applications(status: Optional[str] = None):
     apps = list(APPLICATIONS_STORE.values())
     if status:
         apps = [a for a in apps if a.get("status") == status]

@@ -787,19 +787,25 @@ async def bulk_import_products(
     docs = []
     errors = []
 
-    for i, (idx, row) in enumerate(df.iterrows()):
+    for i, row in enumerate(rows):
         try:
             unit_val = str(row.get("unit", "")).strip().lower() if "unit" in row else ""
             if not unit_val:
-                unit_val = get_default_unit(str(row.get("category", "General")).strip(), str(row["name"]).strip())
+                unit_val = get_default_unit(str(row.get("category", "General")).strip(), str(row.get("name", "")).strip())
+            
+            raw_price = row.get("price")
+            raw_stock = row.get("stock")
+            price_val = float(raw_price) if raw_price is not None and str(raw_price).strip() != "" else 0.0
+            stock_val = int(float(raw_stock)) if raw_stock is not None and str(raw_stock).strip() != "" else 0
+
             doc = {
                 "shopId": shop_id_str,
                 "shop_id": shop_id_str,
-                "name": str(row["name"]).strip(),
+                "name": str(row.get("name", "")).strip(),
                 "description": str(row.get("description", "")).strip() or None,
                 "category": str(row.get("category", "General")).strip(),
-                "price": float(row["price"] if pd.notna(row.get("price")) else 0.0),
-                "stock": int(row.get("stock", 0) if pd.notna(row.get("stock")) else 0),
+                "price": price_val,
+                "stock": stock_val,
                 "images": [],
                 "isAvailable": True,
                 "is_available": True,
