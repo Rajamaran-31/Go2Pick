@@ -3,15 +3,35 @@ import React, { useState, useEffect } from 'react';
 import { Link , useLocation, useNavigate} from 'react-router-dom';
 import api, { getImageUrl } from '../../services/api';
 import { getShopTimeDisplay } from '../../utils/timeFormat';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ShopkeeperProfile() {
   const { setIsShopkeeperMode, dbStatus } = useAppContext();
+  const { refreshUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const [shop, setShop] = useState(null);
   const [user, setUser] = useState(null);
   const [dashStats, setDashStats] = useState({ totalProducts: null, revenue: null, pendingOrders: null });
+
+  const handleSwitchToCustomer = async () => {
+    try {
+      setIsSwitching(true);
+      await api.post('/api/auth/switch-mode', { activeMode: "customer" });
+      localStorage.setItem('go2pick_mode', 'customer');
+      setIsShopkeeperMode(false);
+      await refreshUser();
+      navigate('/');
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message;
+      console.error("Failed to switch mode:", msg);
+      alert("Failed to switch mode: " + msg);
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   const handleAlert = (msg) => {
     alert(msg);
@@ -168,10 +188,14 @@ export default function ShopkeeperProfile() {
 </div>
 </div>
 <div className="w-full md:w-auto">
-<button className="w-full md:w-auto bg-marketplace-orange text-white px-lg py-md rounded-xl font-semibold flex items-center justify-center gap-md active:scale-95 transition-transform shadow-lg shadow-marketplace-orange/20" onClick={() => { setIsShopkeeperMode(false); navigate('/'); }}>
-<span className="material-symbols-outlined">swap_horiz</span>
-                        Switch to Customer Mode
-                    </button>
+<button 
+  disabled={isSwitching}
+  className={`w-full md:w-auto bg-marketplace-orange text-white px-lg py-md rounded-xl font-semibold flex items-center justify-center gap-md active:scale-95 transition-transform shadow-lg shadow-marketplace-orange/20 ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`} 
+  onClick={handleSwitchToCustomer}
+>
+  <span className="material-symbols-outlined">swap_horiz</span>
+  {isSwitching ? "Switching..." : "Switch to Customer Mode"}
+</button>
 </div>
 </div>
 </section>
