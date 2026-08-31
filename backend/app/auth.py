@@ -105,48 +105,38 @@ async def get_current_user(
         )
 
     # Fetch user profile from Firestore
-    user_ref = db.collection("users").document(uid)
-    user_snap = user_ref.get()
-    
-    if not user_snap.exists:
-        # Auto-create profile in Firestore if registered through Firebase Auth but document is missing
-        now = datetime.now(timezone.utc)
+    user = None
+    try:
+        user_ref = db.collection("users").document(uid)
+        user_snap = user_ref.get()
+        if user_snap.exists:
+            user = user_snap.to_dict()
+            user["_id"] = uid
+            user["id"] = uid
+    except Exception as fe:
+        print(f"[WARN] get_current_user Firestore fetch failed: {fe}")
+
+    if not user:
         email_val = decoded_token.get("email", "")
-        email_val_lower = email_val.lower() if email_val else ""
-        
-        name_val = decoded_token.get("name")
-        if not name_val:
-            if email_val:
-                name_val = email_val.split("@")[0]
-            else:
-                name_val = "New User"
-                
-        user_doc = {
-            "fullName": name_val,
-            "email": email_val_lower,
+        role_val = decoded_token.get("role") or ("super_admin" if email_val.lower() == get_settings().ADMIN_EMAIL.lower() else "customer")
+        user = {
+            "_id": uid,
+            "id": uid,
+            "fullName": decoded_token.get("name") or (email_val.split("@")[0].capitalize() if email_val else "User"),
+            "email": email_val,
             "phone": decoded_token.get("phone_number", ""),
-            "role": "customer",
-            "isEmailVerified": decoded_token.get("email_verified", True),
-            "isShopkeeper": False,
-            "shopkeeperStatus": "none",
-            "rejectionReason": None,
-            "shopkeeperDashboardEnabled": False,
+            "role": role_val,
+            "isEmailVerified": True,
+            "isShopkeeper": True if role_val == "shopkeeper" else False,
+            "shopkeeperStatus": "approved" if role_val == "shopkeeper" else "none",
+            "shopkeeperDashboardEnabled": True if role_val == "shopkeeper" else False,
             "activeShopId": None,
-            "currentMode": "customer",
+            "currentMode": role_val,
             "profileImage": decoded_token.get("picture"),
             "isBlocked": False,
-            "createdAt": now,
-            "updatedAt": now,
+            "createdAt": datetime.now(timezone.utc),
+            "updatedAt": datetime.now(timezone.utc),
         }
-        # In special cases (like seeded admin email matching settings), assign super_admin role
-        settings = get_settings()
-        if user_doc["email"] and user_doc["email"] == settings.ADMIN_EMAIL.lower():
-             user_doc["role"] = "super_admin"
-             
-        user_ref.set(user_doc)
-        user = user_doc
-    else:
-        user = user_snap.to_dict()
 
     if user.get("isBlocked", False):
         raise HTTPException(
