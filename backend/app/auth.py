@@ -76,10 +76,14 @@ async def get_current_user(
     payload = decode_token(token)
     if payload and "sub" in payload:
         uid = payload["sub"]
+        email_val = (payload.get("email") or "").lower()
+        role_val = payload.get("role")
+        if not role_val:
+            role_val = "super_admin" if email_val == get_settings().ADMIN_EMAIL.lower() else "customer"
         decoded_token = {
             "uid": uid,
-            "email": payload.get("email", ""),
-            "role": payload.get("role", "customer"),
+            "email": email_val,
+            "role": role_val,
         }
     else:
         try:
