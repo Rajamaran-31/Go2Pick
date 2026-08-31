@@ -17,19 +17,27 @@ router = APIRouter(prefix="/admin", tags=["Super Admin"])
 
 @router.get("/dashboard")
 async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
+    from app.memory_store import get_all_applications
     db = get_db()
 
-    total_users = sum(1 for doc in db.collection("users").stream() if doc.to_dict().get("role") != "super_admin")
-    total_shops = sum(1 for _ in db.collection("shops").stream())
-    total_orders = sum(1 for _ in db.collection("orders").stream())
-    pending_applications = sum(1 for _ in db.collection("shopkeeper_applications").where("status", "==", "pending").stream())
-
-    orders_ref = db.collection("orders").stream()
+    total_users = 1
+    total_shops = 0
+    total_orders = 0
     total_revenue = 0.0
-    for doc in orders_ref:
-        d = doc.to_dict()
-        if d.get("orderStatus") != "cancelled":
-            total_revenue += float(d.get("totalAmount", 0.0))
+
+    try:
+        total_users = sum(1 for doc in db.collection("users").stream() if doc.to_dict().get("role") != "super_admin")
+        total_shops = sum(1 for _ in db.collection("shops").stream())
+        total_orders = sum(1 for _ in db.collection("orders").stream())
+        orders_ref = db.collection("orders").stream()
+        for doc in orders_ref:
+            d = doc.to_dict()
+            if d.get("orderStatus") != "cancelled":
+                total_revenue += float(d.get("totalAmount", 0.0))
+    except Exception as e:
+        print(f"[WARN] Firestore fetch error in admin_dashboard: {e}")
+
+    pending_apps = len(get_all_applications(status="pending"))
 
     return {
         "success": True,
@@ -37,7 +45,7 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
         "totalShops": total_shops,
         "totalOrders": total_orders,
         "totalRevenue": round(total_revenue, 2),
-        "pendingApplications": pending_applications,
+        "pendingApplications": pending_apps,
     }
 
 
