@@ -119,7 +119,7 @@ export default function LoginSignup() {
         });
         login(token, resProfile.data);
         localStorage.setItem('temp_signup_email', email.trim());
-        navigate('/verify-email');
+        navigate('/verify-email', { state: { email: email.trim() } });
       }
     } catch (err) {
       setError(mapAuthError(err));

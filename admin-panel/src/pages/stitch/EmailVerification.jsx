@@ -20,9 +20,13 @@ export default function EmailVerification() {
     return savedUser.email || '';
   });
 
+  const [inputEmail, setInputEmail] = useState(email);
+
   useEffect(() => {
     if (!email) {
-      setError("No email found for verification. Please register or log in.");
+      setError("No email specified. Please enter your email address below or sign in.");
+    } else {
+      setError("");
     }
   }, [email]);
 
@@ -149,6 +153,33 @@ export default function EmailVerification() {
           <p className="text-on-surface-variant mb-xl max-w-[320px]">
             We've sent a 6-digit verification code to <span className="text-on-surface font-semibold">{email || 'your email'}</span>.
           </p>
+
+          {!email && (
+            <div className="w-full mb-md text-left">
+              <label className="text-xs font-semibold text-slate-600 block mb-1">Enter Registered Email</label>
+              <div className="flex gap-2">
+                <input 
+                  type="email" 
+                  value={inputEmail} 
+                  onChange={(e) => setInputEmail(e.target.value)} 
+                  placeholder="your.email@example.com" 
+                  className="flex-1 px-3 py-2 border border-border-gray rounded-lg text-sm focus:outline-none focus:border-primary"
+                />
+                <button 
+                  onClick={() => {
+                    if (inputEmail.trim()) {
+                      setEmail(inputEmail.trim());
+                      localStorage.setItem('temp_signup_email', inputEmail.trim());
+                      setError('');
+                    }
+                  }} 
+                  className="bg-primary text-white text-xs font-semibold px-4 py-2 rounded-lg"
+                >
+                  Set Email
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="w-full bg-error-container/40 border border-error/15 text-on-error-container px-md py-sm rounded-xl flex items-start gap-xs font-body-md text-body-md mb-md text-left" id="verify-error-banner">
