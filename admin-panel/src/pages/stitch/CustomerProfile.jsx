@@ -185,9 +185,9 @@ export default function CustomerProfile() {
 <span className="font-body-md text-body-md">Notifications</span>
 </div>
 <div className="flex items-center gap-xs">
-{unreadCount > 0 && (
-  <span className="bg-error-container text-on-error-container px-2 py-0.5 rounded-full text-[10px] font-bold">{unreadCount}</span>
-)}
+{Number(unreadCount) > 0 ? (
+  <span className="bg-error-container text-on-error-container px-2 py-0.5 rounded-full text-[10px] font-bold">{Number(unreadCount) > 9 ? '9+' : unreadCount}</span>
+) : null}
 <span className="material-symbols-outlined text-outline-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
 </div>
 </button>

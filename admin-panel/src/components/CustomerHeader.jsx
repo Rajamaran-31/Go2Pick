@@ -136,15 +136,15 @@ export default function CustomerHeader() {
           {/* Notifications Bell */}
           {user && (
             <div 
-              className="active:scale-95 transition-transform cursor-pointer relative p-1.5 hover:bg-slate-50 rounded-full text-trust-blue" 
+              className="active:scale-95 transition-transform cursor-pointer relative p-1.5 hover:bg-slate-50 rounded-full text-trust-blue flex items-center justify-center" 
               onClick={() => navigate('/notifications')}
             >
               <span className="material-symbols-outlined text-2xl">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-error-red text-white text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+              {Number(unreadCount) > 0 ? (
+                <span className="absolute -top-0.5 -right-0.5 bg-error-red text-white text-[10px] font-extrabold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white shadow-sm leading-none pointer-events-none z-10">
+                  {Number(unreadCount) > 9 ? '9+' : unreadCount}
                 </span>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -189,15 +189,15 @@ export default function CustomerHeader() {
         <div className="flex md:hidden items-center gap-3">
           {user && (
             <div 
-              className="relative p-1.5 text-trust-blue" 
+              className="relative p-1.5 text-trust-blue flex items-center justify-center cursor-pointer" 
               onClick={() => navigate('/notifications')}
             >
               <span className="material-symbols-outlined text-2xl">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 bg-error-red text-white text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+              {Number(unreadCount) > 0 ? (
+                <span className="absolute -top-0.5 -right-0.5 bg-error-red text-white text-[10px] font-extrabold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white shadow-sm leading-none pointer-events-none z-10">
+                  {Number(unreadCount) > 9 ? '9+' : unreadCount}
                 </span>
-              )}
+              ) : null}
             </div>
           )}
           <button 
