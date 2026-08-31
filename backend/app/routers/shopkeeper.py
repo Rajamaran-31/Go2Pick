@@ -396,13 +396,25 @@ async def shopkeeper_orders(
 ):
     db = get_db()
     shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
+    if not shop_id_str and current_user.get("email"):
+        user_email = (current_user.get("email") or "").lower()
+        shops_ref = list(db.collection("shops").where("email", "==", user_email).stream())
+        if shops_ref:
+            shop_id_str = shops_ref[0].id
+
     if not shop_id_str:
         return {"success": True, "total": 0, "orders": []}
 
     shop_id_str = str(shop_id_str)
 
-    orders_ref = db.collection("orders").where("shopId", "==", shop_id_str).stream()
-    all_orders = list(orders_ref)
+    orders_ref1 = list(db.collection("orders").where("shopId", "==", shop_id_str).stream())
+    orders_ref2 = list(db.collection("orders").where("shop_id", "==", shop_id_str).stream())
+    seen_ids = set()
+    all_orders = []
+    for o in orders_ref1 + orders_ref2:
+        if o.id not in seen_ids:
+            all_orders.append(o)
+            seen_ids.add(o.id)
 
     if status:
         all_orders = [o for o in all_orders if o.to_dict().get("orderStatus") == status]
@@ -480,8 +492,14 @@ async def update_order_status(
 ):
     db = get_db()
     shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
+    if not shop_id_str and current_user.get("email"):
+        user_email = (current_user.get("email") or "").lower()
+        shops_ref = list(db.collection("shops").where("email", "==", user_email).stream())
+        if shops_ref:
+            shop_id_str = shops_ref[0].id
+
     if not shop_id_str:
-         raise HTTPException(status_code=403, detail="No shop assigned to you")
+        raise HTTPException(status_code=403, detail="No shop assigned to you")
 
     shop_id_str = str(shop_id_str)
 
@@ -491,7 +509,8 @@ async def update_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
     
     order = order_snap.to_dict()
-    if order["shopId"] != shop_id_str:
+    order_shop_id = str(order.get("shopId") or order.get("shop_id") or "")
+    if order_shop_id != shop_id_str:
         raise HTTPException(status_code=403, detail="Not your order")
 
     current_status = order.get("orderStatus", "placed")
