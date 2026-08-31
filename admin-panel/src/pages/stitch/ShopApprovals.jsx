@@ -7,6 +7,7 @@ export default function ShopApprovals() {
   const navigate = useNavigate();
   const { unreadCount } = useAppContext();
   const [filter, setFilter] = useState('');
+  const [statusTab, setStatusTab] = useState('pending'); // 'pending' | 'approved' | 'rejected' | 'all'
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [shops, setShops] = useState([]);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -14,7 +15,7 @@ export default function ShopApprovals() {
 
   const fetchRequests = () => {
     Promise.all([
-      adminAPI.getShopkeeperRequests({ status: 'pending' }),
+      adminAPI.getShopkeeperRequests(),
       adminAPI.getDashboard()
     ]).then(([resApps, resDash]) => {
       setUnauthorized(false);
@@ -24,23 +25,28 @@ export default function ShopApprovals() {
       const mappedShops = apps.map(r => {
         const applicantName = r.applicantName || r.ownerName || r.user_name || 'Unknown';
         const shopName = r.shopName || r.shop_name || 'Unknown Shop';
+        const statusStr = (r.status || 'pending').toLowerCase();
         return {
           id: r.id,
           name: applicantName,
           shop: shopName,
-          category: r.category,
-          status: r.status === 'pending' ? 'Pending' : r.status === 'approved' ? 'Approved' : 'Rejected',
+          category: r.category || 'General',
+          status: statusStr === 'approved' ? 'Approved' : statusStr === 'rejected' ? 'Rejected' : 'Pending',
           initial: applicantName ? applicantName.substring(0, 2).toUpperCase() : 'NA',
-          color: 'bg-primary-container'
+          color: statusStr === 'approved' ? 'bg-success-green' : statusStr === 'rejected' ? 'bg-error-red' : 'bg-warning-amber',
+          submittedAt: r.submittedAt || r.createdAt
         };
       });
       setShops(mappedShops);
       
       const pendingCount = mappedShops.filter(s => s.status === 'Pending').length;
+      const approvedCount = mappedShops.filter(s => s.status === 'Approved').length;
+      const rejectedCount = mappedShops.filter(s => s.status === 'Rejected').length;
+
       setStats({
-        pendingApplications: resDash.data?.pendingApplications ?? pendingCount,
-        totalShops: resDash.data?.totalShops ?? 0,
-        processedCount: 0
+        pendingApplications: pendingCount,
+        totalShops: resDash.data?.totalShops || approvedCount,
+        processedCount: approvedCount + rejectedCount
       });
     }).catch(err => {
       console.error("Failed to fetch shop requests", err);
@@ -54,27 +60,37 @@ export default function ShopApprovals() {
     fetchRequests();
   }, []);
 
-  const handleApprove = async (id) => {
+  const handleApprove = async (id, shopName) => {
     try {
       const response = await adminAPI.approveRequest(id);
       console.log("DEBUG [Admin] approve response:", response.data);
+      alert(`🎉 Application for "${shopName || 'Merchant'}" approved successfully! Shop created and user notified.`);
       fetchRequests();
     } catch (err) {
       alert("Failed to approve: " + (err.response?.data?.detail || err.message));
     }
   };
 
-  const handleReject = async (id) => {
+  const handleReject = async (id, shopName) => {
     try {
-      await adminAPI.rejectRequest(id);
+      await adminAPI.rejectRequest(id, { reason: "Application rejected by administrator." });
+      alert(`Shop application for "${shopName || 'Merchant'}" rejected.`);
       fetchRequests();
     } catch (err) {
       alert("Failed to reject: " + (err.response?.data?.detail || err.message));
     }
   };
 
-  const filteredShops = shops.filter(s => 
-    s.status === 'Pending' && 
+  const pendingCount = shops.filter(s => s.status === 'Pending').length;
+  const approvedCount = shops.filter(s => s.status === 'Approved').length;
+  const rejectedCount = shops.filter(s => s.status === 'Rejected').length;
+
+  const filteredShops = shops.filter(s => {
+    if (statusTab === 'pending') return s.status === 'Pending';
+    if (statusTab === 'approved') return s.status === 'Approved';
+    if (statusTab === 'rejected') return s.status === 'Rejected';
+    return true;
+  }).filter(s => 
     ((s.shop || '').toLowerCase().includes(filter.toLowerCase()) || 
     (s.name || '').toLowerCase().includes(filter.toLowerCase()))
   );
@@ -91,7 +107,7 @@ export default function ShopApprovals() {
 <span className="material-symbols-outlined text-on-surface-variant dark:text-outline">menu</span>
 </button>
 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container">
-<img alt="Admin Avatar" className="w-full h-full object-cover" data-alt="A professional headshot of a corporate administrator in a modern office environment. The lighting is bright and clean, emphasizing a high-trust and authoritative persona. The background is slightly blurred with soft blue and slate tones to match the modern corporate aesthetic of the dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCocArS-SRrIxPAjSVSUmqC8ZRcVsIlie8NZ3z1NCn4yqnWYZ68Vwt_FhCWZo9DBXc_SgmoK5LcbkPqNgFRqFJkJ7Vb2fRYKsHT9-xdNkNoXmQNC_N6BHyroszFWgbBzWzz5RwVxnplTxog1arCHoGt2TGDc3jD8oTUPySJ9YvOBRCM7tWBPhq_l2LVONyC4TPMRGyY4o7X6zBHybD99qrmOuJT6hbKD_hXZISyXHIXC1XC-Fm1vzehVEigQmoV9oJVOe-ggMnOMLQu"/>
+<img alt="Admin Avatar" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCocArS-SRrIxPAjSVSUmqC8ZRcVsIlie8NZ3z1NCn4yqnWYZ68Vwt_FhCWZo9DBXc_SgmoK5LcbkPqNgFRqFJkJ7Vb2fRYKsHT9-xdNkNoXmQNC_N6BHyroszFWgbBzWzz5RwVxnplTxog1arCHoGt2TGDc3jD8oTUPySJ9YvOBRCM7tWBPhq_l2LVONyC4TPMRGyY4o7X6zBHybD99qrmOuJT6hbKD_hXZISyXHIXC1XC-Fm1vzehVEigQmoV9oJVOe-ggMnOMLQu"/>
 </div>
 </div>
 </header>
@@ -117,7 +133,7 @@ export default function ShopApprovals() {
       <div>
         <h3 className="font-title-md text-title-md font-bold text-error">Access Denied (403 Forbidden)</h3>
         <p className="font-body-md text-body-md text-on-error-container/90 mt-xs leading-relaxed">
-          Your current session is logged in as a customer (<strong>rajamaran32@gmail.com</strong>). Customer accounts do not have permission to view or approve shopkeeper applications.
+          Your current session is logged in as a customer. Customer accounts do not have permission to view or approve shopkeeper applications.
         </p>
       </div>
     </div>
@@ -146,27 +162,64 @@ export default function ShopApprovals() {
 )}
 
 <div className="grid grid-cols-1 md:grid-cols-3 gap-md mb-xl">
-<div className="bg-white p-lg rounded-xl shadow-sm border-t-4 border-warning-amber flex items-center justify-between">
+<div 
+  onClick={() => setStatusTab('pending')}
+  className={`bg-white p-lg rounded-xl shadow-sm border-t-4 border-warning-amber flex items-center justify-between cursor-pointer transition-transform active:scale-98 ${statusTab === 'pending' ? 'ring-2 ring-warning-amber' : ''}`}
+>
 <div>
 <p className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Pending Review</p>
-<p className="text-headline-lg font-headline-lg text-on-surface">{stats.pendingApplications}</p>
+<p className="text-headline-lg font-headline-lg text-on-surface">{pendingCount}</p>
 </div>
 <span className="material-symbols-outlined text-warning-amber text-4xl" data-icon="pending_actions">pending_actions</span>
 </div>
-<div className="bg-white p-lg rounded-xl shadow-sm border-t-4 border-trust-blue flex items-center justify-between">
+<div 
+  onClick={() => setStatusTab('approved')}
+  className={`bg-white p-lg rounded-xl shadow-sm border-t-4 border-trust-blue flex items-center justify-between cursor-pointer transition-transform active:scale-98 ${statusTab === 'approved' ? 'ring-2 ring-trust-blue' : ''}`}
+>
 <div>
-<p className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Processed Today</p>
-<p className="text-headline-lg font-headline-lg text-on-surface">{stats.processedCount}</p>
+<p className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Processed & Approved</p>
+<p className="text-headline-lg font-headline-lg text-on-surface">{approvedCount}</p>
 </div>
 <span className="material-symbols-outlined text-trust-blue text-4xl" data-icon="verified">verified</span>
 </div>
-<div className="bg-white p-lg rounded-xl shadow-sm border-t-4 border-success-green flex items-center justify-between">
+<div 
+  onClick={() => setStatusTab('all')}
+  className={`bg-white p-lg rounded-xl shadow-sm border-t-4 border-success-green flex items-center justify-between cursor-pointer transition-transform active:scale-98 ${statusTab === 'all' ? 'ring-2 ring-success-green' : ''}`}
+>
 <div>
-<p className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Onboarded Shops</p>
-<p className="text-headline-lg font-headline-lg text-on-surface">{stats.totalShops}</p>
+<p className="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Total Applications</p>
+<p className="text-headline-lg font-headline-lg text-on-surface">{shops.length}</p>
 </div>
 <span className="material-symbols-outlined text-success-green text-4xl" data-icon="storefront">storefront</span>
 </div>
+</div>
+
+{/* Status Filter Tab Buttons */}
+<div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+  <button 
+    onClick={() => setStatusTab('pending')}
+    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusTab === 'pending' ? 'bg-amber-500 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+  >
+    Pending Review ({pendingCount})
+  </button>
+  <button 
+    onClick={() => setStatusTab('approved')}
+    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusTab === 'approved' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+  >
+    Approved ({approvedCount})
+  </button>
+  <button 
+    onClick={() => setStatusTab('rejected')}
+    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusTab === 'rejected' ? 'bg-rose-600 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+  >
+    Rejected ({rejectedCount})
+  </button>
+  <button 
+    onClick={() => setStatusTab('all')}
+    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${statusTab === 'all' ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+  >
+    All Applications ({shops.length})
+  </button>
 </div>
 
 <div className="bg-white rounded-xl shadow-md overflow-hidden border border-border-gray">
@@ -187,7 +240,7 @@ export default function ShopApprovals() {
     <td colSpan="5" className="px-lg py-12 text-center text-on-surface-variant">
       <div className="flex flex-col items-center justify-center">
         <span className="material-symbols-outlined text-4xl mb-2 opacity-50">rule</span>
-        <p>No pending shop applications.</p>
+        <p>No shop applications found in this view.</p>
       </div>
     </td>
   </tr>
@@ -208,8 +261,8 @@ export default function ShopApprovals() {
 <button onClick={() => navigate('/admin/shop-review', { state: { shop } })} className="px-md py-xs rounded-lg border border-trust-blue text-trust-blue font-label-sm text-label-sm hover:bg-trust-blue hover:text-white transition-all active:scale-95 mr-2">View</button>
 {shop.status === 'Pending' && (
   <>
-<button onClick={() => handleApprove(shop.id)} className="px-md py-xs rounded-lg border border-success-green text-success-green font-label-sm text-label-sm hover:bg-success-green hover:text-white transition-all active:scale-95 mr-2">Approve</button>
-<button onClick={() => handleReject(shop.id)} className="px-md py-xs rounded-lg border border-error-red text-error-red font-label-sm text-label-sm hover:bg-error-red hover:text-white transition-all active:scale-95">Reject</button>
+<button onClick={() => handleApprove(shop.id, shop.shop)} className="px-md py-xs rounded-lg border border-success-green text-success-green font-label-sm text-label-sm hover:bg-success-green hover:text-white transition-all active:scale-95 mr-2">Approve</button>
+<button onClick={() => handleReject(shop.id, shop.shop)} className="px-md py-xs rounded-lg border border-error-red text-error-red font-label-sm text-label-sm hover:bg-error-red hover:text-white transition-all active:scale-95">Reject</button>
   </>
 )}
 </td>
