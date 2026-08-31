@@ -16,7 +16,7 @@ def get_all_applications(status: Optional[str] = None):
         apps = [a for a in apps if a.get("status") == status]
     return apps
 
-def update_application_status(app_id: str, new_status: str, rejection_reason: str = None):
+def update_application_status(app_id: str, new_status: str, rejection_reason: Optional[str] = None):
     if app_id in APPLICATIONS_STORE:
         APPLICATIONS_STORE[app_id]["status"] = new_status
         if rejection_reason:
