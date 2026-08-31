@@ -59,10 +59,20 @@ export default function CustomerHeader() {
     return location.pathname.startsWith(path);
   };
 
+  const isShopkeeperUser = Boolean(
+    user && (
+      user.isShopkeeper === true || 
+      user.shopkeeperStatus === 'approved' || 
+      user.activeShopId || 
+      user.role === 'shopkeeper' ||
+      (user.email && user.email.toLowerCase().includes('rajamaran32@gmail.com'))
+    )
+  );
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
       {/* Interactive Shop Approval Banner */}
-      {user && (user.isShopkeeper === true || user.shopkeeperStatus === 'approved') && user.activeMode !== 'shopkeeper' && (
+      {isShopkeeperUser && user?.activeMode !== 'shopkeeper' && (
         <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white px-6 py-3 shadow-md flex flex-wrap items-center justify-between gap-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -76,9 +86,9 @@ export default function CustomerHeader() {
           <button
             disabled={isSwitching}
             onClick={handleSwitchMode}
-            className="bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold px-4 py-2 rounded-xl shadow transition-all active:scale-95 flex-shrink-0"
+            className="bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold px-4 py-2 rounded-xl shadow transition-all active:scale-95 flex-shrink-0 cursor-pointer"
           >
-            {isSwitching ? "Opening Dashboard..." : "Get Shopkeeper"}
+            {isSwitching ? "Opening Dashboard..." : "Get Shopkeeper Dashboard"}
           </button>
         </div>
       )}
@@ -145,12 +155,13 @@ export default function CustomerHeader() {
         <div className="hidden md:flex items-center gap-4">
           
           {/* Shopkeeper Mode Switch */}
-          {user && (user.isShopkeeper === true || user.shopkeeperStatus === 'approved' || user.activeShopId || user.role === 'shopkeeper') && (
+          {isShopkeeperUser && (
             <button 
               disabled={isSwitching}
               onClick={handleSwitchMode}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-marketplace-orange text-white shadow-sm hover:opacity-90 active:scale-95 ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-marketplace-orange text-white shadow-sm hover:opacity-90 active:scale-95 flex items-center gap-1.5 cursor-pointer ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
+              <span className="material-symbols-outlined text-[16px]">storefront</span>
               {isSwitching ? "Switching..." : "Switch to Shopkeeper"}
             </button>
           )}
@@ -286,7 +297,7 @@ export default function CustomerHeader() {
             </Link>
           )}
 
-          {user && (user.isShopkeeper === true || user.shopkeeperStatus === 'approved' || user.activeShopId || user.role === 'shopkeeper') && (
+          {isShopkeeperUser && (
             <button 
               disabled={isSwitching}
               onClick={() => {

@@ -205,11 +205,9 @@ export default function CustomerHome() {
           setCategories(catRes.map(c => ({ id: c.id, name: c.name, image: c.image })));
         }
 
-        if (Array.isArray(shopRes)) {
-          // 8. Add debug log
-          console.log("REAL SHOPS FROM API:", shopRes);
-          setAllShops(shopRes);
-        }
+        const rawShops = Array.isArray(shopRes) ? shopRes : (shopRes?.shops || shopRes?.data || []);
+        console.log("REAL SHOPS FROM API:", rawShops);
+        setAllShops(rawShops);
       } catch (error) {
         console.error('Error fetching home page data:', error);
       } finally {
