@@ -18,23 +18,36 @@ export default function Login() {
   const navigate = useNavigate();
 
   const mapAuthError = (err) => {
-    const rawMessage = err.response?.data?.detail || err.message || '';
-    if (rawMessage.includes('auth/email-already-in-use') || rawMessage.includes('email already registered')) {
-      return 'This email address is already in use. Please log in instead.';
+    let rawMessage = "";
+    const detail = err.response?.data?.detail;
+    if (typeof detail === 'string') {
+      rawMessage = detail;
+    } else if (Array.isArray(detail)) {
+      rawMessage = detail.map(d => (typeof d === 'string' ? d : d.msg || JSON.stringify(d))).join(", ");
+    } else if (typeof err?.message === 'string') {
+      rawMessage = err.message;
+    } else {
+      rawMessage = String(err || "");
     }
-    if (rawMessage.includes('auth/weak-password')) {
-      return 'Password must be at least 6 characters long.';
+
+    const lowerMsg = String(rawMessage).toLowerCase();
+
+    if (lowerMsg.includes("email-already-in-use") || lowerMsg.includes("email already registered") || lowerMsg.includes("already exists")) {
+      return "This email address is already in use. Please log in instead.";
     }
-    if (rawMessage.includes('auth/invalid-email')) {
-      return 'Please enter a valid email address.';
+    if (lowerMsg.includes("weak-password")) {
+      return "Password must be at least 6 characters long.";
     }
-    if (rawMessage.includes('auth/user-not-found') || rawMessage.includes('auth/wrong-password') || rawMessage.includes('auth/invalid-credential')) {
-      return 'Incorrect email or password. Please try again.';
+    if (lowerMsg.includes("invalid-email") || lowerMsg.includes("valid email")) {
+      return "Please enter a valid email address.";
     }
-    if (rawMessage.includes('auth/network-request-failed')) {
-      return 'Network error. Please check your internet connection and try again.';
+    if (lowerMsg.includes("user-not-found") || lowerMsg.includes("wrong-password") || lowerMsg.includes("invalid-credential") || lowerMsg.includes("incorrect")) {
+      return "Incorrect email or password. Please try again.";
     }
-    return rawMessage || 'Authentication failed. Please try again.';
+    if (lowerMsg.includes("network-request-failed") || lowerMsg.includes("network error")) {
+      return "Network error. Please check your internet connection and try again.";
+    }
+    return rawMessage || "Authentication failed. Please try again.";
   };
 
   const handleSubmit = async (e) => {
