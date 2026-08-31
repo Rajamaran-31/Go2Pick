@@ -142,17 +142,6 @@ async def get_current_user(
     if user.get("email", "").lower() == get_settings().ADMIN_EMAIL.lower():
         user["role"] = "super_admin"
 
-    if user.get("email", "").lower() == "rajamaran32@gmail.com":
-        user["isShopkeeper"] = True
-        user["shopkeeperStatus"] = "approved"
-        user["shopkeeperDashboardEnabled"] = True
-        user["role"] = "shopkeeper"
-        user["activeMode"] = "shopkeeper"
-        user["currentMode"] = "shopkeeper"
-        if not user.get("activeShopId"):
-            user["activeShopId"] = "shop-rajamaran32"
-            user["shop_id"] = "shop-rajamaran32"
-
     # Expose both _id and id for backwards compatibility in other modules
     user["_id"] = uid
     user["id"] = uid

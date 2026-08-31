@@ -36,27 +36,6 @@ def _user_to_response(user: dict) -> UserResponse:
 
     prof_img = user.get("profileImage") or user.get("avatar")
 
-    if user.get("email", "").lower() == "rajamaran32@gmail.com":
-        role = "shopkeeper"
-        permissions = ["manage_shop", "manage_products", "manage_orders"]
-        return UserResponse(
-            id=user_id,
-            fullName=user.get("fullName") or user.get("name") or "Rajamaran",
-            email=user.get("email"),
-            phone=user.get("phone"),
-            role="shopkeeper",
-            isEmailVerified=True,
-            isShopkeeper=True,
-            shopkeeperStatus="approved",
-            shopkeeperDashboardEnabled=True,
-            activeShopId=str(user.get("activeShopId", "shop-rajamaran32")),
-            currentMode="shopkeeper",
-            profileImage=resolve_static_url(prof_img),
-            isBlocked=False,
-            createdAt=user.get("createdAt"),
-            permissions=permissions,
-        )
-
     return UserResponse(
         id=user_id,
         fullName=user.get("fullName") or user.get("name") or "",
