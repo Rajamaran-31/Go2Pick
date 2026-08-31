@@ -281,6 +281,9 @@ async def login(body: LoginRequest):
             "role": user_data.get("role", "customer")
         })
 
+    if not uid:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
     # Fetch Firestore user document
     user_snap = db.collection("users").document(uid).get()
     if not user_snap.exists:
