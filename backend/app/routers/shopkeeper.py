@@ -140,15 +140,64 @@ async def apply_as_shopkeeper(
 
 @router.get("/status")
 async def get_shopkeeper_status(current_user: dict = Depends(get_current_user)):
+    user_id = str(current_user["_id"]).strip()
+    email = (current_user.get("email") or "").strip().lower()
+    db = get_db()
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
     is_approved = (
-        current_user.get("isShopkeeper") == True 
-        and current_user.get("shopkeeperStatus") == "approved"
-        and current_user.get("shopkeeperDashboardEnabled") == True
+        current_user.get("isShopkeeper") is True or
+        current_user.get("shopkeeperStatus") == "approved" or
+        current_user.get("shopkeeperDashboardEnabled") is True or
+        current_user.get("role") == "shopkeeper" or
+        current_user.get("role") == "super_admin"
     )
+
+    if not is_approved:
+        # Check shopkeeper_applications in primary, mongo, and firestore
+        try:
+            for snap in db.collection("shopkeeper_applications").where("userId", "==", user_id).stream():
+                if snap.to_dict().get("status") == "approved":
+                    is_approved = True
+                    break
+            if not is_approved and email:
+                for snap in db.collection("shopkeeper_applications").where("email", "==", email).stream():
+                    if snap.to_dict().get("status") == "approved":
+                        is_approved = True
+                        break
+        except Exception:
+            pass
+
+        if not is_approved and mongo_db is not None:
+            try:
+                m_app = mongo_db["shopkeeper_applications"].find_one({
+                    "status": "approved",
+                    "$or": [{"userId": user_id}, {"applicantId": user_id}, {"email": email}, {"applicantEmail": email}]
+                })
+                if m_app:
+                    is_approved = True
+            except Exception:
+                pass
+
+        if not is_approved and firestore_db is not None:
+            try:
+                for snap in firestore_db.collection("shopkeeper_applications").where("userId", "==", user_id).stream():
+                    if snap.to_dict().get("status") == "approved":
+                        is_approved = True
+                        break
+                if not is_approved and email:
+                    for snap in firestore_db.collection("shopkeeper_applications").where("email", "==", email).stream():
+                        if snap.to_dict().get("status") == "approved":
+                            is_approved = True
+                            break
+            except Exception:
+                pass
+
     return {
         "success": True,
         "is_approved": is_approved,
-        "status": current_user.get("shopkeeperStatus", "none")
+        "status": "approved" if is_approved else current_user.get("shopkeeperStatus", "none")
     }
 
 

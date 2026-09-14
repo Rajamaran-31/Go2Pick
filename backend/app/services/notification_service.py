@@ -42,12 +42,38 @@ async def create_notification(
     action_label: Optional[str] = None,
     action_type: Optional[str] = None,
     recipient_role: Optional[str] = None,
+    email: Optional[str] = None,
 ) -> None:
-    """Insert a notification document for a user in Cloud Firestore."""
+    """Insert a notification document across all active databases and trigger FCM push."""
+    db = get_db()
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    import uuid
+    notif_id = f"notif-{uuid.uuid4().hex[:12]}"
     show_button = action_type == "ENABLE_SHOPKEEPER_DASHBOARD" or type in ["SHOP_APPROVED", "shop_approved"]
+    s_user_id = str(user_id).strip() if user_id else None
+    s_email = (email or "").strip().lower() if email else None
+
+    # Lookup email and fcmTokens if not provided
+    fcm_tokens = []
+    if s_user_id and not s_email:
+        try:
+            user_snap = db.collection("users").document(s_user_id).get()
+            if user_snap.exists:
+                udata = user_snap.to_dict()
+                s_email = (udata.get("email") or "").strip().lower() or None
+                fcm_tokens = udata.get("fcmTokens", [])
+        except Exception:
+            pass
+
+    now_utc = datetime.now(timezone.utc)
     doc = {
-        "userId": str(user_id) if user_id else None,
-        "recipientId": str(user_id) if user_id else None,
+        "id": notif_id,
+        "userId": s_user_id,
+        "recipientId": s_user_id,
+        "recipientEmail": s_email,
+        "email": s_email,
         "recipientRole": recipient_role,
         "title": title,
         "message": message,
@@ -56,28 +82,53 @@ async def create_notification(
         "actionType": action_type,
         "show_get_access_button": show_button,
         "isRead": False,
-        "createdAt": datetime.now(timezone.utc),
+        "createdAt": now_utc,
     }
-    db.collection("notifications").add(doc)
+
+    # 1. Primary wrapper add
+    try:
+        db.collection("notifications").document(notif_id).set(doc)
+    except Exception as pe:
+        print(f"[WARN] Primary notification write error: {pe}")
+
+    # 2. Direct MongoDB write
+    if mongo_db is not None:
+        try:
+            mongo_db["notifications"].replace_one(
+                {"_id": notif_id},
+                {**doc, "_id": notif_id, "createdAt": now_utc.isoformat()},
+                upsert=True
+            )
+        except Exception as me:
+            print(f"[WARN] MongoDB notification write error: {me}")
+
+    # 3. Direct Firestore write
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("notifications").document(notif_id).set(doc)
+        except Exception as fe:
+            print(f"[WARN] Firestore notification write error: {fe}")
 
     # Dispatch FCM push notification to user's registered device tokens
     try:
-        if user_id:
-            user_snap = db.collection("users").document(str(user_id)).get()
-            if user_snap.exists:
-                user_data = user_snap.to_dict()
-                fcm_tokens = user_data.get("fcmTokens", [])
-                if fcm_tokens:
-                    send_fcm_push(
-                        tokens=fcm_tokens,
-                        title=title,
-                        body=message,
-                        data={
-                            "type": type or "info",
-                            "actionType": action_type or "",
-                            "actionLabel": action_label or "",
-                        }
-                    )
+        if s_user_id and not fcm_tokens:
+            try:
+                user_snap = db.collection("users").document(s_user_id).get()
+                if user_snap.exists:
+                    fcm_tokens = user_snap.to_dict().get("fcmTokens", [])
+            except Exception:
+                pass
+        if fcm_tokens:
+            send_fcm_push(
+                tokens=fcm_tokens,
+                title=title,
+                body=message,
+                data={
+                    "type": type or "info",
+                    "actionType": action_type or "",
+                    "actionLabel": action_label or "",
+                }
+            )
     except Exception as err:
         print("Failed to dispatch FCM push notification:", err)
 
@@ -93,10 +144,12 @@ async def notify_super_admins_new_application() -> None:
         recipient_role="super_admin",
     )
 
-async def notify_shopkeeper_approved(user_id, shop_name: str) -> None:
+
+async def notify_shopkeeper_approved(user_id, shop_name: str, email: Optional[str] = None) -> None:
     display_name = shop_name or "store"
     await create_notification(
         user_id=user_id,
+        email=email,
         title="Shop Approved 🎉",
         message=f"Your shop '{display_name}' has been approved by Super Admin!",
         type="SHOP_APPROVED",
@@ -105,9 +158,10 @@ async def notify_shopkeeper_approved(user_id, shop_name: str) -> None:
     )
 
 
-async def notify_shopkeeper_rejected(user_id, shop_name: str, reason: str) -> None:
+async def notify_shopkeeper_rejected(user_id, shop_name: str, reason: str, email: Optional[str] = None) -> None:
     await create_notification(
         user_id=user_id,
+        email=email,
         title="Shop Application Rejected",
         message=f"Your application for '{shop_name}' was rejected. Reason: {reason}",
         type="shop_rejected",

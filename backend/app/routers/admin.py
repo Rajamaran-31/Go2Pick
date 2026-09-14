@@ -518,9 +518,10 @@ async def approve_application(application_id: str, current_user: dict = Depends(
 
         # Send notification to applicant ID and all email-matched user accounts
         notified_uids = set()
+        shop_name = app.get("shopName") or app.get("shop_name") or "Approved Shop"
         if applicant_id:
             try:
-                await notify_shopkeeper_approved(applicant_id, app.get("shopName", ""))
+                await notify_shopkeeper_approved(applicant_id, shop_name, email=applicant_email)
                 notified_uids.add(str(applicant_id))
             except Exception as notif_e:
                 print(f"[WARN] Failed to notify shopkeeper by id: {notif_e}")
@@ -528,10 +529,16 @@ async def approve_application(application_id: str, current_user: dict = Depends(
         for ud in user_docs:
             if ud.id not in notified_uids:
                 try:
-                    await notify_shopkeeper_approved(ud.id, app.get("shopName", ""))
+                    await notify_shopkeeper_approved(ud.id, shop_name, email=applicant_email)
                     notified_uids.add(ud.id)
                 except Exception as notif_e:
                     print(f"[WARN] Failed to notify shopkeeper by email doc id: {notif_e}")
+
+        if applicant_email:
+            try:
+                send_shop_approved_email(applicant_email, shop_name)
+            except Exception as mail_e:
+                print(f"[WARN] Failed to send shop approved email: {mail_e}")
     except Exception as fe2:
         print(f"[WARN] Shop creation error: {fe2}")
 

@@ -70,7 +70,7 @@ export const AppProvider = ({ children }) => {
         const unread = list.filter(n => !n.isRead).length;
         setUnreadCount(unread);
         const hasAccess = list.some(
-          n => n.type === "shop_approved" && n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD"
+          n => (n.type === "shop_approved" || n.type === "SHOP_APPROVED" || n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD" || n.show_get_access_button) && !n.isRead
         );
         setHasGetAccessNotification(hasAccess);
         return list;

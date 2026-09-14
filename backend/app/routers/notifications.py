@@ -54,73 +54,132 @@ async def list_notifications(
     current_user: dict = Depends(get_current_user),
 ):
     db = get_db()
-    user_id = str(current_user["_id"])
+    user_id = str(current_user["_id"]).strip()
+    user_email = (current_user.get("email") or "").strip().lower()
     role = current_user.get("role", "customer")
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+    fs_ref = firestore_db or (db if not hasattr(db, "mongo_db") else None)
 
+    raw_notifications = []
+
+    # 1. Primary wrapper stream
     coll_ref = db.collection("notifications")
-    all_docs = []
+    try:
+        if role == "super_admin":
+            for d in coll_ref.where("recipientRole", "==", "super_admin").stream():
+                raw_notifications.append(d.to_dict())
+            for d in coll_ref.where("recipientId", "==", user_id).stream():
+                raw_notifications.append(d.to_dict())
+            for d in coll_ref.where("userId", "==", user_id).stream():
+                raw_notifications.append(d.to_dict())
+        else:
+            for d in coll_ref.where("recipientId", "==", user_id).stream():
+                raw_notifications.append(d.to_dict())
+            for d in coll_ref.where("userId", "==", user_id).stream():
+                raw_notifications.append(d.to_dict())
+            if user_email:
+                for d in coll_ref.where("recipientEmail", "==", user_email).stream():
+                    raw_notifications.append(d.to_dict())
+                for d in coll_ref.where("email", "==", user_email).stream():
+                    raw_notifications.append(d.to_dict())
+    except Exception as pe:
+        print(f"[WARN] Primary notifications fetch error: {pe}")
 
-    if role == "super_admin":
-        docs1 = list(coll_ref.where("recipientRole", "==", "super_admin").stream())
-        docs2 = list(coll_ref.where("recipientId", "==", user_id).stream())
-        docs3 = list(coll_ref.where("userId", "==", user_id).stream())
-        
-        seen = set()
-        for d in docs1 + docs2 + docs3:
-            if d.id not in seen:
-                all_docs.append(d)
-                seen.add(d.id)
-    else:
-        docs1 = list(coll_ref.where("recipientId", "==", user_id).stream())
-        docs2 = list(coll_ref.where("userId", "==", user_id).stream())
-        
-        seen = set()
-        for d in docs1 + docs2:
-            if d.id not in seen:
-                if d.to_dict().get("recipientRole") != "super_admin":
-                    all_docs.append(d)
-                    seen.add(d.id)
+    # 2. MongoDB notifications
+    if mongo_db is not None:
+        try:
+            if role == "super_admin":
+                m_q = {"$or": [{"recipientRole": "super_admin"}, {"recipientId": user_id}, {"userId": user_id}]}
+            else:
+                m_conditions = [{"recipientId": user_id}, {"userId": user_id}]
+                if user_email:
+                    m_conditions.extend([{"recipientEmail": user_email}, {"email": user_email}])
+                m_q = {"$or": m_conditions}
+            for d in mongo_db["notifications"].find(m_q):
+                d["id"] = str(d.get("_id") or d.get("id") or "")
+                raw_notifications.append(d)
+        except Exception as me:
+            print(f"[WARN] Mongo notifications fetch error: {me}")
+
+    # 3. Direct Firestore fetch
+    if fs_ref is not None:
+        try:
+            if role == "super_admin":
+                for d in fs_ref.collection("notifications").where("recipientRole", "==", "super_admin").stream():
+                    raw_notifications.append(d.to_dict())
+                for d in fs_ref.collection("notifications").where("recipientId", "==", user_id).stream():
+                    raw_notifications.append(d.to_dict())
+                for d in fs_ref.collection("notifications").where("userId", "==", user_id).stream():
+                    raw_notifications.append(d.to_dict())
+            else:
+                for d in fs_ref.collection("notifications").where("recipientId", "==", user_id).stream():
+                    raw_notifications.append(d.to_dict())
+                for d in fs_ref.collection("notifications").where("userId", "==", user_id).stream():
+                    raw_notifications.append(d.to_dict())
+                if user_email:
+                    for d in fs_ref.collection("notifications").where("recipientEmail", "==", user_email).stream():
+                        raw_notifications.append(d.to_dict())
+                    for d in fs_ref.collection("notifications").where("email", "==", user_email).stream():
+                        raw_notifications.append(d.to_dict())
+        except Exception as fe:
+            print(f"[WARN] Firestore notifications fetch error: {fe}")
+
+    # Deduplicate by notification id
+    seen_ids = set()
+    unique_notifications = []
+    for n in raw_notifications:
+        nid = str(n.get("id") or n.get("_id") or "")
+        # Filter super_admin broadcasts for non-super-admins
+        if role != "super_admin" and n.get("recipientRole") == "super_admin":
+            continue
+        if nid and nid not in seen_ids:
+            seen_ids.add(nid)
+            unique_notifications.append(n)
 
     if unread_only:
-        all_docs = [d for d in all_docs if d.to_dict().get("isRead") == False]
+        unique_notifications = [n for n in unique_notifications if n.get("isRead") is not True]
 
-    def get_created_at(doc):
-        val = doc.to_dict().get("createdAt")
-        if val is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        return val
-        
-    all_docs.sort(key=get_created_at, reverse=True)
+    def get_created_at(n):
+        val = n.get("createdAt")
+        return str(val) if val else ""
 
-    total = len(all_docs)
-    paginated_docs = all_docs[skip : skip + limit]
+    unique_notifications.sort(key=get_created_at, reverse=True)
 
-    if unread_only:
-        unread_count = total
-    else:
-        unread_count = sum(1 for d in all_docs if d.to_dict().get("isRead") == False)
+    total = len(unique_notifications)
+    unread_count = sum(1 for n in unique_notifications if n.get("isRead") is not True)
+    paginated_list = unique_notifications[skip : skip + limit]
 
-    def _fmt(doc_snap):
-        n = doc_snap.to_dict()
+    def _fmt(n):
+        ntype = n.get("type", "info")
+        act_type = n.get("actionType")
+        is_shop_approval = (
+            ntype in ["SHOP_APPROVED", "shop_approved"] or
+            act_type == "ENABLE_SHOPKEEPER_DASHBOARD" or
+            n.get("show_get_access_button") is True
+        )
         return {
-            "id": doc_snap.id,
-            "userId": str(n.get("recipientId") or n.get("userId") or ""),
-            "recipientId": str(n.get("recipientId") or n.get("userId") or ""),
+            "id": str(n.get("id") or n.get("_id") or ""),
+            "userId": str(n.get("recipientId") or n.get("userId") or user_id),
+            "recipientId": str(n.get("recipientId") or n.get("userId") or user_id),
             "recipientRole": n.get("recipientRole"),
+            "email": n.get("recipientEmail") or n.get("email"),
+            "recipientEmail": n.get("recipientEmail") or n.get("email"),
             "title": n.get("title", ""),
             "message": n.get("message", ""),
-            "type": n.get("type"),
-            "actionLabel": n.get("actionLabel"),
-            "actionType": n.get("actionType"),
-            "isRead": n.get("isRead", False),
-            "createdAt": n.get("createdAt"),
+            "type": "SHOP_APPROVED" if is_shop_approval else ntype,
+            "actionLabel": n.get("actionLabel") or ("Get Access to Shopkeeper Dashboard" if is_shop_approval else None),
+            "actionType": "ENABLE_SHOPKEEPER_DASHBOARD" if is_shop_approval else act_type,
+            "show_get_access_button": is_shop_approval,
+            "isRead": bool(n.get("isRead", False)),
+            "createdAt": str(n.get("createdAt", "")),
         }
 
     return {
         "success": True,
         "total": total,
         "unreadCount": unread_count,
-        "notifications": [_fmt(doc) for doc in paginated_docs],
+        "notifications": [_fmt(n) for n in paginated_list],
     }
 
 
