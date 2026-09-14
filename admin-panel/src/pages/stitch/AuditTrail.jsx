@@ -9,11 +9,10 @@ export default function AuditTrail() {
 
   React.useEffect(() => {
     import('../../services/api').then(({ default: api }) => {
-      api.get('/admin/audit-logs')
+      api.get('/api/admin/audit-logs')
         .then(res => {
-          if (Array.isArray(res.data)) {
-            setEvents(res.data);
-          }
+          const list = Array.isArray(res.data) ? res.data : (res.data?.logs || res.data?.events || []);
+          setEvents(list);
         })
         .catch(err => console.error("Error fetching audit trail:", err));
     });

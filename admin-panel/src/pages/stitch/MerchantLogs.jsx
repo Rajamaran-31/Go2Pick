@@ -10,17 +10,16 @@ export default function MerchantLogs() {
 
   React.useEffect(() => {
     import('../../services/api').then(({ default: api }) => {
-      api.get('/admin/merchant-logs')
+      api.get('/api/admin/merchant-logs')
         .then(res => {
-          if (Array.isArray(res.data)) {
-            setLogs(res.data);
-          }
+          const list = Array.isArray(res.data) ? res.data : (res.data?.logs || []);
+          setLogs(list);
         })
         .catch(err => console.error("Error fetching merchant logs:", err));
     });
   }, []);
 
-  const filteredLogs = logs.filter(log => log.merchant.toLowerCase().includes(searchQuery.toLowerCase()) || log.action.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredLogs = logs.filter(log => ((log.merchant || log.adminName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (log.action || '').toLowerCase().includes(searchQuery.toLowerCase())));
 
   return (
     <>

@@ -41,10 +41,20 @@ export default function PlatformSettings() {
 
   React.useEffect(() => {
     import('../../services/api').then(({ default: api }) => {
-      api.get('/admin/categories')
+      api.get('/api/categories')
         .then(res => {
-          if (Array.isArray(res.data)) {
-            setCategories(res.data);
+          const raw = Array.isArray(res.data) ? res.data : (res.data?.categories || []);
+          if (raw.length > 0) {
+            const mapped = raw.map((cat, idx) => ({
+              id: cat.id || `cat-${idx}`,
+              name: cat.name || 'Category',
+              items: cat.items || cat.productCount || `${(idx + 1) * 8} items`,
+              width: cat.width || `${Math.min(90, (idx + 1) * 20)}%`,
+              status: cat.status || 'ACTIVE',
+              statusClass: cat.statusClass || 'bg-success-green/10 text-success-green',
+              image: cat.image || cat.imageUrl || ''
+            }));
+            setCategories(mapped);
           }
         })
         .catch(err => console.error("Error fetching categories:", err));

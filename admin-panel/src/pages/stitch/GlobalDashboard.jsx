@@ -26,13 +26,16 @@ export default function GlobalDashboard() {
         if (appRes.data?.success && Array.isArray(appRes.data.applications)) {
           setPendingApprovals(appRes.data.applications.map(a => ({
             id: a.id,
-            name: a.applicantName || a.ownerName || 'Unknown',
+            shopName: a.shopName || a.shop_name || 'Shop',
+            name: a.shopName || a.applicantName || a.ownerName || 'Unknown',
+            applicantName: a.applicantName || a.ownerName || a.name || 'Applicant',
             email: a.applicantEmail || a.email || '',
             category: a.category || 'General',
             date: a.submittedAt ? new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
             status: a.status === 'pending' ? 'In Review' : a.status === 'approved' ? 'Approved' : 'Rejected',
-            initial: (a.applicantName || a.ownerName || 'NA').substring(0, 2).toUpperCase(),
-            error: false
+            initial: (a.shopName || a.applicantName || a.ownerName || 'SH').substring(0, 2).toUpperCase(),
+            error: false,
+            raw: a
           })));
         }
       } catch (err) {
@@ -293,8 +296,8 @@ export default function GlobalDashboard() {
 <td className="px-lg py-md flex items-center gap-sm">
 <div className="w-8 h-8 rounded bg-surface-container flex items-center justify-center font-bold text-primary">{app.initial}</div>
 <div>
-<p className="font-body-md font-semibold">{app.name}</p>
-<p className="text-[12px] text-outline">{app.email}</p>
+<p className="font-body-md font-semibold">{app.shopName}</p>
+<p className="text-[12px] text-outline">{app.applicantName} {app.email ? `• ${app.email}` : ''}</p>
 </div>
 </td>
 <td className="px-lg py-md font-body-md">{app.category}</td>
@@ -303,7 +306,7 @@ export default function GlobalDashboard() {
 <span className={`px-sm py-base rounded-full text-[12px] font-semibold ${app.error ? 'bg-error-red/10 text-error-red' : 'bg-warning-amber/10 text-warning-amber'}`}>{app.status}</span>
 </td>
 <td className="px-lg py-md text-right">
-<button onClick={() => navigate('/admin/approvals')} className="text-trust-blue hover:underline font-label-sm text-label-sm">Review</button>
+<button onClick={() => navigate('/admin/shop-review', { state: { shop: app.raw } })} className="text-trust-blue hover:underline font-label-sm text-label-sm">Review</button>
 </td>
 </tr>
 ))}

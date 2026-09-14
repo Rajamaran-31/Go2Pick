@@ -58,6 +58,7 @@ import SystemHealth from './pages/stitch/SystemHealth';
 import AuditTrail from './pages/stitch/AuditTrail';
 import AdminRoleSettings from './pages/stitch/AdminRoleSettings';
 import ShopReviews from './pages/stitch/ShopReviews';
+import Orders from './pages/Orders';
 import BottomTabBar from './components/BottomTabBar';
 import BackButton from './components/BackButton';
 
@@ -199,6 +200,7 @@ export default function App() {
             <Route path="settings/role" element={<AdminRoleSettings />} />
             <Route path="payouts" element={<Navigate to="/admin" replace />} />
             <Route path="reviews" element={<ReviewManagement />} />
+            <Route path="orders" element={<Orders />} />
             <Route path="logs" element={<MerchantLogs />} />
             <Route path="health" element={<SystemHealth />} />
             <Route path="audit" element={<AuditTrail />} />
