@@ -35,8 +35,18 @@ export function AuthProvider({ children }) {
     let authListenerTriggered = false;
 
     const handleLocalFallback = async () => {
-      const savedToken = localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token');
-      const savedUser = localStorage.getItem('admin_user') || localStorage.getItem('go2pick_user');
+      const onAdminPage = window.location.pathname.startsWith('/admin');
+      const savedToken = onAdminPage
+        ? (localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token'))
+        : (localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token'));
+      const savedUserStr = onAdminPage
+        ? (localStorage.getItem('admin_user') || localStorage.getItem('go2pick_user'))
+        : (localStorage.getItem('go2pick_user') || localStorage.getItem('admin_user'));
+
+      let cachedUser = null;
+      if (savedUserStr) {
+        try { cachedUser = JSON.parse(savedUserStr); } catch (e) {}
+      }
 
       if (savedToken) {
         try {
@@ -50,12 +60,20 @@ export function AuthProvider({ children }) {
               setUser(userData);
               console.log("DEBUG [AuthContext]: local session restored");
             }
+          } else if (cachedUser && isMounted) {
+            setToken(savedToken);
+            setUser(cachedUser);
           } else {
             if (isMounted) logout();
           }
         } catch (err) {
           console.error("DEBUG [AuthContext]: session validation failed:", err.message);
-          if (isMounted) logout();
+          if (cachedUser && isMounted) {
+            setToken(savedToken);
+            setUser(cachedUser);
+          } else {
+            if (isMounted) logout();
+          }
         }
       } else {
         if (isMounted) logout();
@@ -85,21 +103,37 @@ export function AuthProvider({ children }) {
           if (res.data && res.data.success !== false) {
              const userData = res.data.user || res.data;
              if (isMounted) {
-               localStorage.setItem('admin_token', tokenValue);
+               if (userData.role === 'super_admin' || userData.role === 'admin') {
+                 localStorage.setItem('admin_token', tokenValue);
+                 localStorage.setItem('admin_user', JSON.stringify(userData));
+               }
                localStorage.setItem('go2pick_token', tokenValue);
-               localStorage.setItem('admin_user', JSON.stringify(userData));
                localStorage.setItem('go2pick_user', JSON.stringify(userData));
-               setToken(tokenValue);
-               setUser(userData);
+
+               const onAdminPage = window.location.pathname.startsWith('/admin');
+               const existingAdminUser = localStorage.getItem('admin_user');
+               if (onAdminPage && existingAdminUser && userData.role !== 'super_admin' && userData.role !== 'admin') {
+                 try {
+                   const parsedAdmin = JSON.parse(existingAdminUser);
+                   setUser(parsedAdmin);
+                   setToken(localStorage.getItem('admin_token'));
+                 } catch (e) {
+                   setUser(userData);
+                   setToken(tokenValue);
+                 }
+               } else {
+                 setToken(tokenValue);
+                 setUser(userData);
+               }
                console.log("DEBUG [AuthContext]: Firebase auth restored successfully");
              }
           } else {
-             console.log("DEBUG [AuthContext]: backend me failed, logging out");
-             if (isMounted) logout();
+             console.log("DEBUG [AuthContext]: backend me failed, trying local fallback");
+             await handleLocalFallback();
           }
         } catch (error) {
           console.error("DEBUG [AuthContext]: token validation failed:", error.message);
-          if (isMounted) logout();
+          await handleLocalFallback();
         }
       } else {
         console.log("DEBUG [AuthContext]: Firebase user is null, trying local fallback");

@@ -30,22 +30,29 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  const isAdminTarget = (config.url && config.url.includes('/admin')) || window.location.pathname.startsWith('/admin');
+  const adminToken = localStorage.getItem('admin_token');
+
+  // If this is an admin request or we are on an admin page, prioritize admin_token
+  if (isAdminTarget && adminToken) {
+    config.headers.Authorization = `Bearer ${adminToken}`;
+    return config;
+  }
+
   const user = auth.currentUser;
   if (user) {
     try {
       const token = await user.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
+      return config;
     } catch (e) {
       console.error('Error getting Firebase ID Token:', e);
     }
-  } else {
-    const isAdminRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/shopkeeper');
-    const token = isAdminRoute 
-      ? (localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token'))
-      : (localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token'));
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  }
+
+  const fallbackToken = adminToken || localStorage.getItem('go2pick_token');
+  if (fallbackToken) {
+    config.headers.Authorization = `Bearer ${fallbackToken}`;
   }
   return config;
 });

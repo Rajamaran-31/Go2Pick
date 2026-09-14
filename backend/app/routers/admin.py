@@ -20,27 +20,50 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
     from app.memory_store import get_all_applications
     db = get_db()
 
-    total_users = 1
+    total_users = 0
     total_shops = 0
     total_orders = 0
     total_revenue = 0.0
+
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
     try:
         total_users = sum(1 for doc in db.collection("users").stream() if doc.to_dict().get("role") != "super_admin")
         total_shops = sum(1 for _ in db.collection("shops").stream())
         total_orders = sum(1 for _ in db.collection("orders").stream())
-        orders_ref = db.collection("orders").stream()
-        for doc in orders_ref:
+        for doc in db.collection("orders").stream():
             d = doc.to_dict()
             if d.get("orderStatus") != "cancelled":
-                total_revenue += float(d.get("totalAmount", 0.0))
+                total_revenue += float(d.get("totalAmount", 0.0) or 0.0)
     except Exception as e:
         print(f"[WARN] Firestore fetch error in admin_dashboard: {e}")
 
+    if total_shops == 0 and mongo_db is not None:
+        try:
+            total_shops = mongo_db["shops"].count_documents({})
+        except Exception:
+            pass
+
+    if total_users == 0 and mongo_db is not None:
+        try:
+            total_users = mongo_db["users"].count_documents({"role": {"$ne": "super_admin"}})
+        except Exception:
+            pass
+
+    if total_orders == 0 and mongo_db is not None:
+        try:
+            total_orders = mongo_db["orders"].count_documents({})
+            for o in mongo_db["orders"].find({"orderStatus": {"$ne": "cancelled"}}):
+                total_revenue += float(o.get("totalAmount", 0.0) or 0.0)
+        except Exception:
+            pass
+
+    # Ensure baseline minimum for clean display
+    total_users = max(total_users, 1)
+
     # Fetch pending apps from Firestore + MongoDB + memory store
     apps_list = []
-    firestore_db = getattr(db, "firestore_db", None)
-    mongo_db = getattr(db, "mongo_db", None)
 
     if firestore_db is not None:
         try:
@@ -584,29 +607,52 @@ async def list_shops(
     current_user: dict = Depends(require_super_admin),
 ):
     db = get_db()
-    all_shops = list(db.collection("shops").stream())
+    mongo_db = getattr(db, "mongo_db", None)
+
+    all_shops = []
+    try:
+        for doc in db.collection("shops").stream():
+            sd = doc.to_dict()
+            sd["id"] = doc.id
+            all_shops.append(sd)
+    except Exception as e:
+        print(f"[WARN] Firestore shops fetch error: {e}")
+
+    if not all_shops and mongo_db is not None:
+        try:
+            for s in mongo_db["shops"].find():
+                s["id"] = str(s.get("_id", s.get("id", "")))
+                all_shops.append(s)
+        except Exception:
+            pass
 
     if search:
         search_lower = search.lower()
-        all_shops = [s for s in all_shops if search_lower in s.to_dict().get("shopName", "").lower()]
+        all_shops = [s for s in all_shops if search_lower in (s.get("shopName") or s.get("name", "")).lower()]
 
     def get_created_at(doc):
-        val = doc.to_dict().get("createdAt")
-        if val is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        return val
+        val = doc.get("createdAt")
+        return str(val) if val else ""
 
     all_shops.sort(key=get_created_at, reverse=True)
     total = len(all_shops)
     paginated_shops = all_shops[skip : skip + limit]
 
     result = []
-    for s_doc in paginated_shops:
-        s = s_doc.to_dict()
-        owner_snap = db.collection("users").document(s.get("ownerId", "")).get()
-        owner = owner_snap.to_dict() if owner_snap.exists else None
+    for s in paginated_shops:
+        owner_name = s.get("ownerName", s.get("owner_name"))
+        owner_email = s.get("ownerEmail", s.get("owner_email", ""))
+        if not owner_name and s.get("ownerId"):
+            try:
+                owner_snap = db.collection("users").document(s.get("ownerId")).get()
+                if owner_snap.exists:
+                    owner_data = owner_snap.to_dict()
+                    owner_name = owner_data.get("fullName", owner_data.get("name", "Unknown"))
+                    owner_email = owner_data.get("email", "")
+            except Exception:
+                pass
         result.append({
-            "id": s_doc.id,
+            "id": str(s.get("id") or s.get("_id") or ""),
             "name": s.get("shopName", s.get("name", "Shop")),
             "shopName": s.get("shopName", s.get("name", "Shop")),
             "category": s.get("category", "General"),
@@ -618,8 +664,8 @@ async def list_shops(
             "totalOrders": int(s.get("totalOrders", 0) or 0),
             "isActive": s.get("isActive", s.get("is_active", True)),
             "isApproved": s.get("isApproved", True),
-            "ownerName": owner.get("fullName", owner.get("name", "Unknown")) if owner else "Unknown",
-            "ownerEmail": owner.get("email", "") if owner else "",
+            "ownerName": owner_name or "Unknown",
+            "ownerEmail": owner_email,
             "createdAt": str(s.get("createdAt", "")),
         })
 
@@ -732,39 +778,60 @@ async def list_users(
     current_user: dict = Depends(require_super_admin),
 ):
     db = get_db()
-    all_users = list(db.collection("users").stream())
+    mongo_db = getattr(db, "mongo_db", None)
+
+    users_data = []
+    try:
+        for doc in db.collection("users").stream():
+            ud = doc.to_dict()
+            ud["id"] = doc.id
+            users_data.append(ud)
+    except Exception as e:
+        print(f"[WARN] Firestore users fetch error: {e}")
+
+    if (not users_data or len(users_data) <= 1) and mongo_db is not None:
+        try:
+            for u in mongo_db["users"].find():
+                u["id"] = str(u.get("_id", u.get("id", "")))
+                users_data.append(u)
+        except Exception:
+            pass
+
+    seen_ids = set()
+    unique_users = []
+    for u in users_data:
+        uid = str(u.get("id") or u.get("_id") or "")
+        if uid and uid not in seen_ids:
+            seen_ids.add(uid)
+            unique_users.append(u)
 
     # Filter role != super_admin
-    all_users = [u for u in all_users if u.to_dict().get("role") != "super_admin"]
+    all_users = [u for u in unique_users if u.get("role") != "super_admin"]
 
     if role:
-        all_users = [u for u in all_users if u.to_dict().get("role") == role]
+        all_users = [u for u in all_users if u.get("role") == role]
 
     if search:
         search_lower = search.lower()
         all_users = [
             u for u in all_users
-            if search_lower in u.to_dict().get("fullName", "").lower()
-            or search_lower in u.to_dict().get("name", "").lower()
-            or search_lower in u.to_dict().get("email", "").lower()
+            if search_lower in (u.get("fullName") or u.get("name", "")).lower()
+            or search_lower in (u.get("email") or "").lower()
         ]
 
     def get_created_at(doc):
-        val = doc.to_dict().get("createdAt")
-        if val is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        return val
+        val = doc.get("createdAt")
+        return str(val) if val else ""
 
     all_users.sort(key=get_created_at, reverse=True)
     total = len(all_users)
     paginated_users = all_users[skip : skip + limit]
 
     result = []
-    for u_doc in paginated_users:
-        u = u_doc.to_dict()
+    for u in paginated_users:
         name = u.get("fullName") or u.get("name") or "User"
         result.append({
-            "id": u_doc.id,
+            "id": str(u.get("id") or u.get("_id") or ""),
             "fullName": name,
             "name": name,
             "email": u.get("email", ""),
@@ -1062,13 +1129,37 @@ async def list_all_orders_admin(
     current_user: dict = Depends(require_super_admin),
 ):
     db = get_db()
-    orders_ref = db.collection("orders").stream()
-    all_orders = list(orders_ref)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    orders_data = []
+    try:
+        for doc in db.collection("orders").stream():
+            od = doc.to_dict()
+            od["id"] = doc.id
+            orders_data.append(od)
+    except Exception as e:
+        print(f"[WARN] Firestore orders fetch error: {e}")
+
+    if not orders_data and mongo_db is not None:
+        try:
+            for o in mongo_db["orders"].find():
+                o["id"] = str(o.get("_id", o.get("id", "")))
+                orders_data.append(o)
+        except Exception:
+            pass
+
+    seen_ids = set()
+    all_orders = []
+    for o in orders_data:
+        oid = str(o.get("id") or o.get("_id") or "")
+        if oid and oid not in seen_ids:
+            seen_ids.add(oid)
+            all_orders.append(o)
 
     if status:
         stat_lower = status.lower()
         def status_match(doc):
-            curr_s = (doc.to_dict().get("orderStatus") or "").lower()
+            curr_s = (doc.get("orderStatus") or doc.get("status") or "").lower()
             if stat_lower in ["pending", "placed"]:
                 return curr_s in ["pending", "placed"]
             if stat_lower in ["ready", "ready_for_pickup"]:
@@ -1077,48 +1168,46 @@ async def list_all_orders_admin(
         all_orders = [o for o in all_orders if status_match(o)]
 
     def get_created_at(doc):
-        val = doc.to_dict().get("createdAt")
-        if val is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        return val
+        val = doc.get("createdAt")
+        return str(val) if val else ""
 
     all_orders.sort(key=get_created_at, reverse=True)
     total = len(all_orders)
     paginated_orders = all_orders[skip : skip + limit]
 
     result = []
-    for doc in paginated_orders:
-        o = doc.to_dict()
+    for o in paginated_orders:
         items = o.get("items", [])
         
         pickup_time_str = o.get("pickupTime") or ""
         pickup_date = ""
         pickup_time = ""
         if pickup_time_str:
-            parts = pickup_time_str.split(" ")
+            parts = str(pickup_time_str).split(" ")
             if len(parts) >= 2:
                 pickup_date = parts[0]
                 pickup_time = " ".join(parts[1:])
             else:
-                pickup_date = pickup_time_str
+                pickup_date = str(pickup_time_str)
 
-        raw_status = o.get("orderStatus", "placed")
+        raw_status = o.get("orderStatus") or o.get("status") or "placed"
         created_val = o.get("createdAt")
         created_str = created_val.isoformat() if isinstance(created_val, datetime) else str(created_val or "")
 
+        oid = str(o.get("id") or o.get("_id") or "")
         result.append({
-            "id": doc.id,
-            "orderId": doc.id,
-            "customer_name": o.get("customerName", "Customer"),
-            "customerName": o.get("customerName", "Customer"),
-            "customerPhone": o.get("customerPhone", ""),
-            "shop_name": o.get("shopName", "Shop"),
-            "shopName": o.get("shopName", "Shop"),
-            "shopId": o.get("shopId", ""),
-            "items_count": sum(item.get("quantity", 0) for item in items),
+            "id": oid,
+            "orderId": oid,
+            "customer_name": o.get("customerName") or o.get("customer_name") or "Customer",
+            "customerName": o.get("customerName") or o.get("customer_name") or "Customer",
+            "customerPhone": o.get("customerPhone") or o.get("customer_phone", ""),
+            "shop_name": o.get("shopName") or o.get("shop_name") or "Shop",
+            "shopName": o.get("shopName") or o.get("shop_name") or "Shop",
+            "shopId": str(o.get("shopId") or o.get("shop_id", "")),
+            "items_count": sum(item.get("quantity", 0) for item in items) if items else int(o.get("items_count", 1)),
             "items": items,
-            "total": float(o.get("totalAmount", 0.0)),
-            "totalAmount": float(o.get("totalAmount", 0.0)),
+            "total": float(o.get("totalAmount") or o.get("total", 0.0)),
+            "totalAmount": float(o.get("totalAmount") or o.get("total", 0.0)),
             "pickup_date": pickup_date,
             "pickup_time": pickup_time,
             "pickupTime": o.get("pickupTime"),

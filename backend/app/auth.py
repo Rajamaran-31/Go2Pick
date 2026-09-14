@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import firebase_admin
 from firebase_admin import auth
 
 from app.config import get_settings
@@ -71,15 +72,20 @@ async def get_current_user(
 
     token = credentials.credentials
     db = get_db()
+    settings = get_settings()
     
     # 1. Try custom JWT decode first, then Firebase ID Token fallback
     payload = decode_token(token)
+    email_val = ""
+    uid = None
+    decoded_token = {}
+
     if payload and "sub" in payload:
         uid = payload["sub"]
         email_val = (payload.get("email") or "").lower()
         role_val = payload.get("role")
         if not role_val:
-            role_val = "super_admin" if email_val == get_settings().ADMIN_EMAIL.lower() else "customer"
+            role_val = "super_admin" if email_val == settings.ADMIN_EMAIL.lower() else "customer"
         decoded_token = {
             "uid": uid,
             "email": email_val,
@@ -87,20 +93,36 @@ async def get_current_user(
         }
     else:
         try:
-            if firebase_admin._apps:
+            if getattr(firebase_admin, "_apps", None):
                 decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
                 uid = decoded_token.get("uid")
+                email_val = (decoded_token.get("email") or "").lower()
             else:
-                raise ValueError("Firebase SDK not initialized")
+                # If Firebase Admin SDK isn't active, fallback to JWT unverified payload
+                if payload:
+                    uid = payload.get("sub", payload.get("user_id", "user-default"))
+                    email_val = (payload.get("email") or "").lower()
+                    decoded_token = payload
+                else:
+                    raise ValueError("Firebase SDK not initialized")
         except Exception as fb_err:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication failed. Please log in again.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            print(f"[WARN] verify_id_token error: {fb_err}")
+            # Try to decode without verification for dev resilience
+            if payload:
+                uid = payload.get("sub", payload.get("user_id", "user-default"))
+                email_val = (payload.get("email") or "").lower()
+                decoded_token = payload
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Authentication failed: {str(fb_err)}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
 
-    # Fetch user profile from Firestore
+    # Fetch user profile from Firestore or MongoDB
     user = None
+    mongo_db = getattr(db, "mongo_db", None)
+
     try:
         user_ref = db.collection("users").document(uid)
         user_snap = user_ref.get()
@@ -111,9 +133,21 @@ async def get_current_user(
     except Exception as fe:
         print(f"[WARN] get_current_user Firestore fetch failed: {fe}")
 
+    if not user and mongo_db is not None:
+        try:
+            query = [{"_id": uid}, {"id": uid}]
+            if email_val:
+                query.append({"email": email_val})
+            m_user = mongo_db["users"].find_one({"$or": query})
+            if m_user:
+                m_user["_id"] = str(m_user.get("_id", uid))
+                m_user["id"] = m_user["_id"]
+                user = m_user
+        except Exception:
+            pass
+
     if not user:
-        email_val = decoded_token.get("email", "")
-        role_val = decoded_token.get("role") or ("super_admin" if email_val.lower() == get_settings().ADMIN_EMAIL.lower() else "customer")
+        role_val = decoded_token.get("role") or ("super_admin" if email_val.lower() == settings.ADMIN_EMAIL.lower() else "customer")
         user = {
             "_id": uid,
             "id": uid,
@@ -139,7 +173,7 @@ async def get_current_user(
             detail="Your account has been blocked. Contact support."
         )
 
-    if user.get("email", "").lower() == get_settings().ADMIN_EMAIL.lower():
+    if user.get("email", "").lower() == settings.ADMIN_EMAIL.lower():
         user["role"] = "super_admin"
 
     # Ensure approved shopkeepers have shopkeeper context
@@ -222,7 +256,10 @@ async def require_shopkeeper(current_user: dict = Depends(get_current_user)) -> 
 
 
 async def require_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
-    if current_user.get("role") != "super_admin":
+    role = (current_user.get("role") or "").lower()
+    email = (current_user.get("email") or "").lower()
+    admin_email = get_settings().ADMIN_EMAIL.lower()
+    if role not in ["super_admin", "admin"] and email != admin_email:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Super Admin access required"

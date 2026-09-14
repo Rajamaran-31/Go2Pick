@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { adminAPI } from '../../services/api';
@@ -7,32 +7,97 @@ export default function ShopReviewDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const { setIsShopApproved } = useAppContext();
-  const shop = location.state?.shop;
+  
+  const [shop, setShop] = useState(location.state?.shop || null);
+  const [loadingShop, setLoadingShop] = useState(!location.state?.shop);
+  const [status, setStatus] = useState('Pending Review');
+  const [showPopup, setShowPopup] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.shop) {
+      setShop(location.state.shop);
+      setStatus(location.state.shop.status === 'Pending' ? 'Pending Review' : location.state.shop.status);
+      localStorage.setItem('last_reviewed_shop', JSON.stringify(location.state.shop));
+      setLoadingShop(false);
+      return;
+    }
+
+    const cached = localStorage.getItem('last_reviewed_shop');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && (parsed.id || parsed.shop)) {
+          setShop(parsed);
+          setStatus(parsed.status === 'Pending' ? 'Pending Review' : parsed.status);
+          setLoadingShop(false);
+          return;
+        }
+      } catch (e) {}
+    }
+
+    adminAPI.getShopkeeperRequests({ limit: 1 })
+      .then(res => {
+        const apps = res.data?.applications || [];
+        if (apps.length > 0) {
+          const a = apps[0];
+          const mapped = {
+            ...a,
+            id: a.id,
+            name: a.applicantName || a.ownerName || 'Unknown',
+            shop: a.shopName || 'Merchant Shop',
+            category: a.category || 'General',
+            status: a.status === 'pending' ? 'Pending Review' : a.status,
+            email: a.applicantEmail || a.email || '',
+            phone: a.phone || '',
+            address: a.address || '',
+            city: a.city || '',
+            pincode: a.pincode || '',
+            description: a.description || '',
+            businessProof: a.businessProof || a.businessProofUrl || null,
+          };
+          setShop(mapped);
+          setStatus(mapped.status);
+          localStorage.setItem('last_reviewed_shop', JSON.stringify(mapped));
+        }
+      })
+      .catch(err => console.error("Failed to auto-fetch shop application:", err))
+      .finally(() => setLoadingShop(false));
+  }, [location.state]);
+
+  const updateShopStatus = (newStatus) => {
+    setStatus(newStatus);
+    if (shop) {
+      const updatedShop = { ...shop, status: newStatus };
+      setShop(updatedShop);
+      localStorage.setItem('last_reviewed_shop', JSON.stringify(updatedShop));
+    }
+  };
+
+  if (loadingShop) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-xl">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-md"></div>
+          <p className="font-body-md text-on-surface-variant">Loading application details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!shop) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center p-xl">
           <span className="material-symbols-outlined text-6xl text-on-surface-variant mb-md" data-icon="error_outline">error_outline</span>
-          <p className="font-title-md text-title-md text-on-surface mb-md">No application selected</p>
+          <p className="font-title-md text-title-md text-on-surface mb-md">No application found to review</p>
           <button onClick={() => navigate('/admin/approvals')} className="bg-primary text-on-primary px-lg py-sm rounded-xl font-title-md">
-            Back to Approvals
+            Go to Approvals
           </button>
         </div>
       </div>
     );
   }
-
-  const [status, setStatus] = useState(shop.status === 'Pending' ? 'Pending Review' : shop.status);
-  const [showPopup, setShowPopup] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const updateShopStatus = (newStatus) => {
-    setStatus(newStatus);
-    const localShops = JSON.parse(localStorage.getItem('pendingShops') || '[]');
-    const updated = localShops.map(s => s.id === shop.id ? { ...s, status: newStatus } : s);
-    localStorage.setItem('pendingShops', JSON.stringify(updated));
-  };
 
   const handleApprove = async () => {
     try {

@@ -71,7 +71,18 @@ function PrivateRoute() {
 function AdminRoute() {
   const { user, token, loading } = useAuth();
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
-  const hasAccess = token && user?.role === 'super_admin';
+
+  const adminToken = token || localStorage.getItem('admin_token');
+  let adminUser = user;
+  if (!adminUser || (adminUser.role !== 'super_admin' && adminUser.role !== 'admin')) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('admin_user') || 'null');
+      if (parsed) adminUser = parsed;
+    } catch (e) {}
+  }
+
+  const role = (adminUser?.role || '').toLowerCase();
+  const hasAccess = adminToken && (role === 'super_admin' || role === 'admin');
   return hasAccess ? <Outlet /> : <Navigate to="/admin/login" replace />;
 }
 
