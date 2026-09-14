@@ -32,52 +32,115 @@ def resolve_firebase_credentials(path_str: str) -> str:
 
 # ─── Resilient MongoDB Atlas Collection Wrapper ─────────────────────────────
 
+from bson import ObjectId
+
+def build_id_filter(doc_id: Any) -> Dict[str, Any]:
+    if doc_id is None:
+        return {"_id": None}
+    s_id = str(doc_id).strip()
+    candidates: List[Dict[str, Any]] = [{"_id": s_id}, {"id": s_id}]
+    if len(s_id) == 24 and all(c in '0123456789abcdefABCDEF' for c in s_id):
+        try:
+            oid = ObjectId(s_id)
+            candidates.append({"_id": oid})
+            candidates.append({"id": oid})
+        except Exception:
+            pass
+    if isinstance(doc_id, ObjectId):
+        candidates.append({"_id": doc_id})
+    return {"$or": candidates}
+
+
 class MongoDocSnap:
     def __init__(self, doc: Optional[Dict[str, Any]], doc_id: str = ""):
         self._doc = doc or {}
         self.exists = doc is not None
-        self.id = doc_id or str(self._doc.get('_id', self._doc.get('id', '')))
+        _raw_id = self._doc.get('_id', self._doc.get('id', ''))
+        self.id = doc_id or (str(_raw_id) if _raw_id else "")
 
     def to_dict(self) -> Dict[str, Any]:
         d = dict(self._doc)
-        if '_id' in d and not isinstance(d['_id'], str):
-            d['_id'] = str(d['_id'])
+        str_id = str(d.get('_id', d.get('id', self.id)))
+        d['_id'] = str_id
+        d['id'] = str_id
+        for k, v in list(d.items()):
+            if isinstance(v, ObjectId):
+                d[k] = str(v)
         return d
 
 
 class MongoDocRef:
-    def __init__(self, coll: Any, doc_id: str):
+    def __init__(self, coll: Any, doc_id: str, fs_coll: Any = None):
         self.coll = coll
-        self.id = doc_id
+        self.id = str(doc_id)
+        self.fs_coll = fs_coll
 
     def get(self) -> MongoDocSnap:
-        doc = self.coll.find_one({'_id': self.id}) or self.coll.find_one({'id': self.id})
+        filter_q = build_id_filter(self.id)
+        doc = self.coll.find_one(filter_q)
         return MongoDocSnap(doc, doc_id=self.id)
 
     def set(self, data: Dict[str, Any]):
         data_copy = dict(data)
-        data_copy['id'] = self.id
-        data_copy['_id'] = self.id
-        self.coll.replace_one({'_id': self.id}, data_copy, upsert=True)
+        data_copy['id'] = str(self.id)
+        filter_q = build_id_filter(self.id)
+        existing = self.coll.find_one(filter_q)
+        if existing and '_id' in existing:
+            target_id = existing['_id']
+            data_copy['_id'] = target_id
+            self.coll.replace_one({'_id': target_id}, data_copy, upsert=True)
+        else:
+            data_copy['_id'] = self.id
+            self.coll.replace_one({'_id': self.id}, data_copy, upsert=True)
+
+        if self.fs_coll is not None:
+            try:
+                self.fs_coll.document(str(self.id)).set(data)
+            except Exception:
+                pass
 
     def update(self, data: Dict[str, Any]):
-        self.coll.update_one({'_id': self.id}, {'$set': data})
+        filter_q = build_id_filter(self.id)
+        self.coll.update_many(filter_q, {'$set': data})
+
+        if self.fs_coll is not None:
+            try:
+                self.fs_coll.document(str(self.id)).update(data)
+            except Exception:
+                pass
+
+    def delete(self):
+        filter_q = build_id_filter(self.id)
+        self.coll.delete_many(filter_q)
+
+        if self.fs_coll is not None:
+            try:
+                self.fs_coll.document(str(self.id)).delete()
+            except Exception:
+                pass
 
 
 class MongoQueryWrapper:
-    def __init__(self, coll: Any, query: Optional[Dict[str, Any]] = None, limit_val: int = 0):
+    def __init__(self, coll: Any, query: Optional[Dict[str, Any]] = None, limit_val: int = 0, fs_coll: Any = None):
         self.coll = coll
         self.query = query or {}
         self.limit_val = limit_val
+        self.fs_coll = fs_coll
 
     def where(self, field: str, op: str, val: Any) -> "MongoQueryWrapper":
         q = dict(self.query)
         if op == '==':
-            q[field] = val
-        return MongoQueryWrapper(self.coll, q, self.limit_val)
+            if field in ('_id', 'id') and isinstance(val, str) and len(val) == 24 and all(c in '0123456789abcdefABCDEF' for c in val):
+                try:
+                    q['$or'] = [{field: val}, {field: ObjectId(val)}]
+                except Exception:
+                    q[field] = val
+            else:
+                q[field] = val
+        return MongoQueryWrapper(self.coll, q, self.limit_val, self.fs_coll)
 
     def limit(self, n: int) -> "MongoQueryWrapper":
-        return MongoQueryWrapper(self.coll, self.query, limit_val=n)
+        return MongoQueryWrapper(self.coll, self.query, limit_val=n, fs_coll=self.fs_coll)
 
     def stream(self):
         cur = self.coll.find(self.query)
@@ -90,7 +153,7 @@ class MongoQueryWrapper:
         import uuid
         if not doc_id:
             doc_id = str(uuid.uuid4())
-        return MongoDocRef(self.coll, doc_id)
+        return MongoDocRef(self.coll, str(doc_id), self.fs_coll)
 
     def add(self, data: Dict[str, Any]):
         import uuid
@@ -99,7 +162,13 @@ class MongoQueryWrapper:
         data_copy['id'] = doc_id
         data_copy['_id'] = doc_id
         self.coll.replace_one({'_id': doc_id}, data_copy, upsert=True)
-        return (None, MongoDocRef(self.coll, doc_id))
+
+        if self.fs_coll is not None:
+            try:
+                self.fs_coll.document(doc_id).set(data)
+            except Exception:
+                pass
+        return (None, MongoDocRef(self.coll, doc_id, self.fs_coll))
 
 
 class MongoDatabaseWrapper:
@@ -108,9 +177,17 @@ class MongoDatabaseWrapper:
         self.firestore_db = firestore_db
 
     def collection(self, name: str) -> MongoQueryWrapper:
+        fs_coll = None
+        if self.firestore_db is not None:
+            try:
+                fs_coll = self.firestore_db.collection(name)
+            except Exception:
+                pass
         if self.mongo_db is not None:
-            return MongoQueryWrapper(self.mongo_db[name])
-        return self.firestore_db.collection(name)
+            return MongoQueryWrapper(self.mongo_db[name], fs_coll=fs_coll)
+        if fs_coll is not None:
+            return fs_coll
+        raise HTTPException(status_code=503, detail="Database collection unavailable")
 
 
 class Database:

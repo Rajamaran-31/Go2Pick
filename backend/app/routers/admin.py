@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime, timezone
 import secrets
 
-from app.database import get_db
+from app.database import get_db, build_id_filter
 from app.auth import require_super_admin, get_current_user
 from app.utils import to_object_id
 from app.schemas import RejectApplicationRequest, PlatformSettingsUpdateRequest
@@ -243,9 +243,9 @@ async def get_application(application_id: str, current_user: dict = Depends(requ
     # Check Mongo
     if not app and mongo_db is not None:
         try:
-            m_doc = mongo_db["shopkeeper_applications"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            m_doc = mongo_db["shopkeeper_applications"].find_one(build_id_filter(application_id))
             if not m_doc:
-                m_doc = mongo_db["shopkeeper_requests"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+                m_doc = mongo_db["shopkeeper_requests"].find_one(build_id_filter(application_id))
             if m_doc:
                 m_doc["id"] = str(m_doc.get("_id", m_doc.get("id", "")))
                 app = m_doc
@@ -328,17 +328,17 @@ async def approve_application(application_id: str, current_user: dict = Depends(
     # 3. Update MongoDB if available
     if mongo_db is not None:
         try:
-            m_doc = mongo_db["shopkeeper_applications"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            m_doc = mongo_db["shopkeeper_applications"].find_one(build_id_filter(application_id))
             if not m_doc:
-                m_doc = mongo_db["shopkeeper_requests"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+                m_doc = mongo_db["shopkeeper_requests"].find_one(build_id_filter(application_id))
             if m_doc and not app:
                 app = m_doc
-            mongo_db["shopkeeper_applications"].update_one(
-                {"$or": [{"_id": application_id}, {"id": application_id}]},
+            mongo_db["shopkeeper_applications"].update_many(
+                build_id_filter(application_id),
                 {"$set": {"status": "approved", "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
             )
-            mongo_db["shopkeeper_requests"].update_one(
-                {"$or": [{"_id": application_id}, {"id": application_id}]},
+            mongo_db["shopkeeper_requests"].update_many(
+                build_id_filter(application_id),
                 {"$set": {"status": "approved", "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
             )
         except Exception as me:
@@ -420,7 +420,7 @@ async def approve_application(application_id: str, current_user: dict = Depends(
                 pass
             if mongo_db is not None:
                 try:
-                    mongo_db["users"].update_one({"$or": [{"_id": applicant_id}, {"id": applicant_id}]}, {"$set": update_user_payload})
+                    mongo_db["users"].update_many(build_id_filter(applicant_id), {"$set": update_user_payload})
                 except Exception:
                     pass
             if firestore_db is not None:
@@ -511,17 +511,17 @@ async def reject_application(
     # Check MongoDB
     if mongo_db is not None:
         try:
-            m_doc = mongo_db["shopkeeper_applications"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            m_doc = mongo_db["shopkeeper_applications"].find_one(build_id_filter(application_id))
             if not m_doc:
-                m_doc = mongo_db["shopkeeper_requests"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+                m_doc = mongo_db["shopkeeper_requests"].find_one(build_id_filter(application_id))
             if m_doc and not app:
                 app = m_doc
-            mongo_db["shopkeeper_applications"].update_one(
-                {"$or": [{"_id": application_id}, {"id": application_id}]},
+            mongo_db["shopkeeper_applications"].update_many(
+                build_id_filter(application_id),
                 {"$set": {"status": "rejected", "rejectionReason": body.rejectionReason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
             )
-            mongo_db["shopkeeper_requests"].update_one(
-                {"$or": [{"_id": application_id}, {"id": application_id}]},
+            mongo_db["shopkeeper_requests"].update_many(
+                build_id_filter(application_id),
                 {"$set": {"status": "rejected", "rejectionReason": body.rejectionReason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
             )
         except Exception:
@@ -563,7 +563,7 @@ async def reject_application(
         if mongo_db is not None:
             try:
                 mongo_db["users"].update_many(
-                    {"$or": [{"_id": user_id}, {"id": user_id}]},
+                    build_id_filter(user_id),
                     {"$set": user_update_payload}
                 )
             except Exception:
@@ -688,7 +688,7 @@ async def block_shop(shop_id: str, current_user: dict = Depends(require_super_ad
 
     if mongo_db is not None:
         try:
-            mongo_db["shops"].update_many({"$or": [{"_id": shop_id}, {"id": shop_id}]}, {"$set": {"isActive": False, "is_active": False, "updatedAt": now.isoformat()}})
+            mongo_db["shops"].update_many(build_id_filter(shop_id), {"$set": {"isActive": False, "is_active": False, "updatedAt": now.isoformat()}})
         except Exception:
             pass
 
@@ -715,7 +715,7 @@ async def unblock_shop(shop_id: str, current_user: dict = Depends(require_super_
 
     if mongo_db is not None:
         try:
-            mongo_db["shops"].update_many({"$or": [{"_id": shop_id}, {"id": shop_id}]}, {"$set": {"isActive": True, "is_active": True, "updatedAt": now.isoformat()}})
+            mongo_db["shops"].update_many(build_id_filter(shop_id), {"$set": {"isActive": True, "is_active": True, "updatedAt": now.isoformat()}})
         except Exception:
             pass
 
@@ -740,7 +740,7 @@ async def toggle_shop(shop_id: str, current_user: dict = Depends(require_super_a
     if shop_snap.exists:
         current_active = shop_snap.to_dict().get("isActive", True)
     elif mongo_db is not None:
-        m_shop = mongo_db["shops"].find_one({"$or": [{"_id": shop_id}, {"id": shop_id}]})
+        m_shop = mongo_db["shops"].find_one(build_id_filter(shop_id))
         if m_shop:
             current_active = m_shop.get("isActive", True)
 
@@ -754,7 +754,7 @@ async def toggle_shop(shop_id: str, current_user: dict = Depends(require_super_a
 
     if mongo_db is not None:
         try:
-            mongo_db["shops"].update_many({"$or": [{"_id": shop_id}, {"id": shop_id}]}, {"$set": {"isActive": new_active, "is_active": new_active, "updatedAt": now.isoformat()}})
+            mongo_db["shops"].update_many(build_id_filter(shop_id), {"$set": {"isActive": new_active, "is_active": new_active, "updatedAt": now.isoformat()}})
         except Exception:
             pass
 
@@ -871,7 +871,7 @@ async def block_user(user_id: str, current_user: dict = Depends(require_super_ad
 
     if mongo_db is not None:
         try:
-            mongo_db["users"].update_many({"$or": [{"_id": user_id}, {"id": user_id}]}, {"$set": {"isBlocked": True, "updatedAt": now.isoformat()}})
+            mongo_db["users"].update_many(build_id_filter(user_id), {"$set": {"isBlocked": True, "updatedAt": now.isoformat()}})
         except Exception:
             pass
 
@@ -898,7 +898,7 @@ async def unblock_user(user_id: str, current_user: dict = Depends(require_super_
 
     if mongo_db is not None:
         try:
-            mongo_db["users"].update_many({"$or": [{"_id": user_id}, {"id": user_id}]}, {"$set": {"isBlocked": False, "updatedAt": now.isoformat()}})
+            mongo_db["users"].update_many(build_id_filter(user_id), {"$set": {"isBlocked": False, "updatedAt": now.isoformat()}})
         except Exception:
             pass
 

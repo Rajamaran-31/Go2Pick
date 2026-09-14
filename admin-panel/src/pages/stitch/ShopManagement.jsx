@@ -164,7 +164,7 @@ export default function ShopManagement() {
 
 <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-border-gray">
 <div className="overflow-x-auto">
-<table className="w-full text-left border-collapse">
+<table className="w-full min-w-[650px] text-left border-collapse">
 <thead className="bg-surface-slate">
 <tr>
 <th className="px-lg py-md font-label-sm text-on-surface-variant uppercase tracking-wider">Shop Name &amp; Category</th>
@@ -203,15 +203,15 @@ export default function ShopManagement() {
 <td className="px-lg py-md text-right">
 <div className="flex justify-end gap-sm">
 {shop.featured ? (
-<div onClick={() => setShops(shops.map(s => s.id === shop.id ? {...s, featured: false} : s))} className="px-sm py-xs bg-marketplace-orange text-white rounded-lg font-label-sm flex items-center gap-xs shadow-sm cursor-pointer">
+<div onClick={(e) => { e.stopPropagation(); setShops(shops.map(s => s.id === shop.id ? {...s, featured: false} : s)); }} className="px-sm py-xs bg-marketplace-orange text-white rounded-lg font-label-sm flex items-center gap-xs shadow-sm cursor-pointer">
 <span className="material-symbols-outlined text-[18px]" style={{fontVariationSettings: '\'FILL\' 1'}}>verified</span> Featured
 </div>
 ) : (
-<button onClick={() => setShops(shops.map(s => s.id === shop.id ? {...s, featured: true} : s))} className="px-sm py-xs bg-marketplace-orange/10 text-marketplace-orange hover:bg-marketplace-orange hover:text-white rounded-lg font-label-sm transition-all flex items-center gap-xs active:scale-95" title="Feature Shop">
+<button onClick={(e) => { e.stopPropagation(); setShops(shops.map(s => s.id === shop.id ? {...s, featured: true} : s)); }} className="px-sm py-xs bg-marketplace-orange/10 text-marketplace-orange hover:bg-marketplace-orange hover:text-white rounded-lg font-label-sm transition-all flex items-center gap-xs active:scale-95 cursor-pointer" title="Feature Shop">
 <span className="material-symbols-outlined text-[18px]">verified</span> Feature
 </button>
 )}
-<button onClick={(e) => { e.stopPropagation(); if (window.confirm(`${shop.isActive ? 'Suspend' : 'Activate'} ${shop.name}?`)) handleToggle(shop); }} className={`px-sm py-xs rounded-lg font-label-sm transition-all flex items-center gap-xs active:scale-95 ${shop.isActive ? 'bg-error-red/10 text-error-red hover:bg-error-red hover:text-white' : 'bg-success-green/10 text-success-green hover:bg-success-green hover:text-white'}`} title={shop.isActive ? 'Suspend Shop' : 'Activate Shop'}>
+<button onClick={(e) => { e.stopPropagation(); if (window.confirm(`${shop.isActive ? 'Suspend' : 'Activate'} ${shop.name}?`)) handleToggle(shop); }} className={`px-sm py-xs rounded-lg font-label-sm transition-all flex items-center gap-xs active:scale-95 cursor-pointer ${shop.isActive ? 'bg-error-red/10 text-error-red hover:bg-error-red hover:text-white' : 'bg-success-green/10 text-success-green hover:bg-success-green hover:text-white'}`} title={shop.isActive ? 'Suspend Shop' : 'Activate Shop'}>
 <span className="material-symbols-outlined text-[18px]">{shop.isActive ? 'block' : 'check_circle'}</span> {shop.isActive ? 'Suspend' : 'Activate'}
 </button>
 </div>
@@ -243,14 +243,16 @@ export default function ShopManagement() {
   <div className="fixed inset-0 z-[200] flex">
     <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
     <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
-      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
+      <button className="self-end material-symbols-outlined mb-4 cursor-pointer" onClick={() => setIsDrawerOpen(false)}>close</button>
       <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
       <div className="flex flex-col gap-2">
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/orders'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">receipt_long</span> Orders</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/analytics'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">analytics</span> Analytics</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
       </div>
     </div>
   </div>

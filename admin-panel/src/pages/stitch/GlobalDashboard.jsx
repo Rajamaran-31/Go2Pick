@@ -272,7 +272,7 @@ export default function GlobalDashboard() {
 <section className="bg-surface-container-lowest rounded-xl shadow-sm border border-border-gray overflow-hidden">
 <div className="p-lg border-b border-border-gray flex justify-between items-center">
 <h4 className="font-title-md text-title-md">Pending Shop Approvals</h4>
-<button onClick={() => navigate('/admin/approvals')} className="text-primary font-label-sm text-label-sm hover:underline">View All Approvals</button>
+<button onClick={() => navigate('/admin/approvals')} className="text-primary font-label-sm text-label-sm hover:underline cursor-pointer">View All Approvals</button>
 </div>
 {isLoading ? (
   <div className="p-lg text-center text-on-surface-variant">Loading approvals...</div>
@@ -280,7 +280,7 @@ export default function GlobalDashboard() {
   <div className="p-lg text-center text-on-surface-variant">No pending shop applications.</div>
 ) : (
 <div className="overflow-x-auto">
-<table className="w-full text-left">
+<table className="w-full min-w-[650px] text-left">
 <thead className="bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant">
 <tr>
 <th className="px-lg py-md">Shop Name</th>
@@ -306,7 +306,7 @@ export default function GlobalDashboard() {
 <span className={`px-sm py-base rounded-full text-[12px] font-semibold ${app.error ? 'bg-error-red/10 text-error-red' : 'bg-warning-amber/10 text-warning-amber'}`}>{app.status}</span>
 </td>
 <td className="px-lg py-md text-right">
-<button onClick={() => navigate('/admin/shop-review', { state: { shop: app.raw } })} className="text-trust-blue hover:underline font-label-sm text-label-sm">Review</button>
+<button onClick={() => navigate('/admin/shop-review', { state: { shop: app.raw } })} className="text-trust-blue hover:underline font-label-sm text-label-sm cursor-pointer">Review</button>
 </td>
 </tr>
 ))}
@@ -321,14 +321,16 @@ export default function GlobalDashboard() {
   <div className="fixed inset-0 z-[200] flex">
     <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
     <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
-      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
+      <button className="self-end material-symbols-outlined mb-4 cursor-pointer" onClick={() => setIsDrawerOpen(false)}>close</button>
       <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
       <div className="flex flex-col gap-2">
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/orders'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">receipt_long</span> Orders</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/analytics'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">analytics</span> Analytics</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
       </div>
     </div>
   </div>

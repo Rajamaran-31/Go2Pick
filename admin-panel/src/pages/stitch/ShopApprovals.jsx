@@ -234,7 +234,7 @@ export default function ShopApprovals() {
 
 <div className="bg-white rounded-xl shadow-md overflow-hidden border border-border-gray">
 <div className="overflow-x-auto">
-<table className="w-full text-left border-collapse">
+<table className="w-full min-w-[650px] text-left border-collapse">
 <thead className="bg-surface-container-low text-on-surface-variant">
 <tr>
 <th className="px-lg py-md font-label-sm text-label-sm">Applicant Name</th>
@@ -300,14 +300,16 @@ export default function ShopApprovals() {
   <div className="fixed inset-0 z-[200] flex">
     <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
     <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
-      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
+      <button className="self-end material-symbols-outlined mb-4 cursor-pointer" onClick={() => setIsDrawerOpen(false)}>close</button>
       <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
       <div className="flex flex-col gap-2">
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/orders'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">receipt_long</span> Orders</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/analytics'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">analytics</span> Analytics</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2 cursor-pointer"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
       </div>
     </div>
   </div>

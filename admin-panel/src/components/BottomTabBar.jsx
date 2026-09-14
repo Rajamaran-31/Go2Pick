@@ -9,7 +9,7 @@ export default function BottomTabBar() {
   const activeMode = user?.activeMode || user?.currentMode || localStorage.getItem('go2pick_mode') || 'customer';
 
   // Hide the bottom tab bar on these specific routes
-  const hiddenPrefixes = ['/login', '/signup', '/welcome', '/forgot-password', '/reset-password', '/verify-email', '/admin/login'];
+  const hiddenPrefixes = ['/login', '/signup', '/welcome', '/forgot-password', '/reset-password', '/verify-email', '/admin/login', '/admin/shop-review'];
   const isHidden = hiddenPrefixes.some(prefix => location.pathname === prefix || location.pathname?.startsWith(prefix + '/'));
 
   if (isHidden) {

@@ -18,6 +18,11 @@ export default function BackButton() {
     '/admin/login',      // Admin login
     '/welcome',          // Welcome splash
     '/admin',            // Admin dashboard (exact)
+    '/admin/approvals',  // Approvals with custom header
+    '/admin/users',      // Users with custom header
+    '/admin/shops',      // Shops with custom header
+    '/admin/shop-review',// Review with custom header
+    '/admin/settings',   // Settings with custom header
     '/shopkeeper',       // Shopkeeper dashboard (exact)
   ];
 

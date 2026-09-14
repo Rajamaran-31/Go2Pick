@@ -6,7 +6,7 @@ import io
 import csv
 from firebase_admin import firestore
 
-from app.database import get_db
+from app.database import get_db, build_id_filter
 from app.auth import get_current_user, require_shopkeeper
 from app.utils import to_object_id, resolve_static_url, get_default_unit
 from app.schemas import (
@@ -108,8 +108,11 @@ async def apply_as_shopkeeper(
 
     if mongo_db is not None:
         try:
+            u_query = build_id_filter(user_id)
+            if user_email:
+                u_query["$or"].append({"email": user_email})
             mongo_db["users"].update_many(
-                {"$or": [{"_id": user_id}, {"id": user_id}, {"email": user_email}]},
+                u_query,
                 {"$set": user_update_payload}
             )
         except Exception as user_m_err:
@@ -334,8 +337,11 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
 
     if mongo_db is not None:
         try:
+            u_query = build_id_filter(user_id)
+            if email:
+                u_query["$or"].append({"email": email})
             mongo_db["users"].update_many(
-                {"$or": [{"_id": user_id}, {"id": user_id}, {"email": email}]},
+                u_query,
                 {"$set": {**update_payload, "updatedAt": datetime.now(timezone.utc).isoformat()}}
             )
         except Exception:

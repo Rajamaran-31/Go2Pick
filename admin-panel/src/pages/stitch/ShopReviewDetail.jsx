@@ -320,7 +320,7 @@ export default function ShopReviewDetail() {
 </main>
 </div>
 
-<div className="fixed bottom-[72px] left-0 right-0 bg-white/90 backdrop-blur-md border-t border-border-gray z-40 py-md px-lg">
+<div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-border-gray z-50 py-md px-lg shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
 <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-md">
 <div className="flex items-center gap-md">
 <span className="material-symbols-outlined text-on-surface-variant" data-icon="visibility">visibility</span>
