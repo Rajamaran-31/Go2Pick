@@ -20,47 +20,115 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
     from app.memory_store import get_all_applications
     db = get_db()
 
-    total_users = 0
-    total_shops = 0
-    total_orders = 0
-    total_revenue = 0.0
-
     firestore_db = getattr(db, "firestore_db", None)
     mongo_db = getattr(db, "mongo_db", None)
+    fs_ref = firestore_db or (db if not hasattr(db, "mongo_db") else None)
+
+    # 1. Total users (deduplicated across primary wrapper, MongoDB, and Firestore)
+    seen_user_keys = set()
+    try:
+        for doc in db.collection("users").stream():
+            ud = doc.to_dict()
+            key = (ud.get("email") or "").strip().lower() or str(doc.id or ud.get("id") or ud.get("_id") or "").strip()
+            if key:
+                seen_user_keys.add(key)
+    except Exception as e:
+        print(f"[WARN] Primary users stream error in admin_dashboard: {e}")
+
+    if mongo_db is not None:
+        try:
+            for u in mongo_db["users"].find({}, {"_id": 1, "id": 1, "email": 1}):
+                key = (u.get("email") or "").strip().lower() or str(u.get("_id") or u.get("id") or "").strip()
+                if key:
+                    seen_user_keys.add(key)
+        except Exception:
+            pass
+
+    if fs_ref is not None:
+        try:
+            for doc in fs_ref.collection("users").stream():
+                ud = doc.to_dict()
+                key = (ud.get("email") or "").strip().lower() or str(doc.id or ud.get("id") or "").strip()
+                if key:
+                    seen_user_keys.add(key)
+        except Exception:
+            pass
+
+    total_users = len(seen_user_keys)
+
+    # 2. Total shops (deduplicated across primary wrapper, MongoDB, and Firestore)
+    seen_shop_ids = set()
+    try:
+        for doc in db.collection("shops").stream():
+            sid = str(doc.id or "")
+            if sid:
+                seen_shop_ids.add(sid)
+    except Exception:
+        pass
+
+    if mongo_db is not None:
+        try:
+            for s in mongo_db["shops"].find({}, {"_id": 1, "id": 1}):
+                sid = str(s.get("_id") or s.get("id") or "")
+                if sid:
+                    seen_shop_ids.add(sid)
+        except Exception:
+            pass
+
+    if fs_ref is not None:
+        try:
+            for doc in fs_ref.collection("shops").stream():
+                sid = str(doc.id or "")
+                if sid:
+                    seen_shop_ids.add(sid)
+        except Exception:
+            pass
+
+    total_shops = len(seen_shop_ids)
+
+    # 3. Total orders & revenue (deduplicated across primary wrapper, MongoDB, and Firestore)
+    seen_order_ids = set()
+    orders_data = []
 
     try:
-        total_users = sum(1 for _ in db.collection("users").stream())
-        total_shops = sum(1 for _ in db.collection("shops").stream())
-        total_orders = sum(1 for _ in db.collection("orders").stream())
         for doc in db.collection("orders").stream():
-            d = doc.to_dict()
-            if d.get("orderStatus") != "cancelled":
-                total_revenue += float(d.get("totalAmount", 0.0) or 0.0)
-    except Exception as e:
-        print(f"[WARN] Firestore fetch error in admin_dashboard: {e}")
+            od = doc.to_dict()
+            oid = str(doc.id or od.get("id") or od.get("_id") or "")
+            if oid and oid not in seen_order_ids:
+                seen_order_ids.add(oid)
+                orders_data.append(od)
+    except Exception:
+        pass
 
-    if total_shops == 0 and mongo_db is not None:
+    if mongo_db is not None:
         try:
-            total_shops = mongo_db["shops"].count_documents({})
+            for od in mongo_db["orders"].find():
+                oid = str(od.get("_id") or od.get("id") or "")
+                if oid and oid not in seen_order_ids:
+                    seen_order_ids.add(oid)
+                    orders_data.append(od)
         except Exception:
             pass
 
-    if total_users == 0 and mongo_db is not None:
+    if fs_ref is not None:
         try:
-            total_users = mongo_db["users"].count_documents({})
+            for doc in fs_ref.collection("orders").stream():
+                od = doc.to_dict()
+                oid = str(doc.id or od.get("id") or "")
+                if oid and oid not in seen_order_ids:
+                    seen_order_ids.add(oid)
+                    orders_data.append(od)
         except Exception:
             pass
 
-    if total_orders == 0 and mongo_db is not None:
-        try:
-            total_orders = mongo_db["orders"].count_documents({})
-            for o in mongo_db["orders"].find({"orderStatus": {"$ne": "cancelled"}}):
-                total_revenue += float(o.get("totalAmount", 0.0) or 0.0)
-        except Exception:
-            pass
-
-    # Ensure baseline minimum for clean display
-    total_users = max(total_users, 1)
+    total_orders = len(orders_data)
+    total_revenue = 0.0
+    for od in orders_data:
+        if od.get("orderStatus") != "cancelled" and od.get("status") != "cancelled":
+            try:
+                total_revenue += float(od.get("totalAmount", od.get("total", 0.0)) or 0.0)
+            except Exception:
+                pass
 
     # Fetch pending apps from Firestore + MongoDB + memory store
     apps_list = []
