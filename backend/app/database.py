@@ -92,6 +92,15 @@ class MongoQueryWrapper:
             doc_id = str(uuid.uuid4())
         return MongoDocRef(self.coll, doc_id)
 
+    def add(self, data: Dict[str, Any]):
+        import uuid
+        data_copy = dict(data)
+        doc_id = str(data_copy.get('id') or data_copy.get('_id') or uuid.uuid4())
+        data_copy['id'] = doc_id
+        data_copy['_id'] = doc_id
+        self.coll.replace_one({'_id': doc_id}, data_copy, upsert=True)
+        return (None, MongoDocRef(self.coll, doc_id))
+
 
 class MongoDatabaseWrapper:
     def __init__(self, mongo_db: Any, firestore_db: Any = None):

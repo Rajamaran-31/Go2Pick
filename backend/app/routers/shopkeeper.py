@@ -29,18 +29,21 @@ async def apply_as_shopkeeper(
     body: ShopkeeperApplicationRequest,
     current_user: dict = Depends(get_current_user),
 ):
+    import uuid
     from app.memory_store import add_application
     db = get_db()
     user_id = str(current_user["_id"])
+    user_email = (current_user.get("email") or body.email or "").lower()
 
     now = datetime.now(timezone.utc)
-    app_id = f"app-{abs(hash(user_id + str(now)))}"
+    app_id = f"app-{uuid.uuid4().hex[:12]}"
 
     app_doc = {
         "id": app_id,
+        "_id": app_id,
         "applicantId": user_id,
         "applicantName": current_user.get("fullName", current_user.get("name", body.ownerName or "Unknown")),
-        "applicantEmail": current_user.get("email", body.email.lower()),
+        "applicantEmail": user_email,
         "shopName": body.shopName,
         "category": body.category,
         "address": body.address,
@@ -53,7 +56,7 @@ async def apply_as_shopkeeper(
         "userId": user_id,
         "ownerName": body.ownerName or current_user.get("fullName", "Unknown"),
         "phone": body.phone,
-        "email": body.email.lower(),
+        "email": user_email,
         "description": body.description,
         "rejectionReason": None,
         "submittedAt": now.isoformat(),
@@ -61,35 +64,67 @@ async def apply_as_shopkeeper(
         "reviewedBy": None,
     }
 
-    # Save to memory store first
+    # 1. Save to in-memory store
     add_application(app_doc)
 
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    # 2. Write to Firestore if available
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("shopkeeper_applications").document(app_id).set(app_doc)
+        except Exception as f_err:
+            print(f"[WARN] Failed to write application to Firestore: {f_err}")
+
+    # 3. Write to MongoDB Atlas if available
+    if mongo_db is not None:
+        try:
+            mongo_db["shopkeeper_applications"].replace_one({"_id": app_id}, dict(app_doc), upsert=True)
+            mongo_db["shopkeeper_requests"].replace_one({"_id": app_id}, dict(app_doc), upsert=True)
+        except Exception as m_err:
+            print(f"[WARN] Failed to write application to MongoDB: {m_err}")
+
+    # 4. Write to primary DB wrapper
     try:
-        doc_ref = db.collection("shopkeeper_applications").document()
-        app_doc["id"] = doc_ref.id
-        app_id = doc_ref.id
-        add_application(app_doc)
+        db.collection("shopkeeper_applications").document(app_id).set(app_doc)
+    except Exception as db_err:
+        print(f"[WARN] Failed to write application to primary db: {db_err}")
 
-        doc_ref.set(app_doc)
+    # 5. Update user document across all storage layers
+    user_update_payload = {
+        "shopkeeperStatus": "pending",
+        "isShopkeeper": False,
+        "shopkeeperDashboardEnabled": False,
+        "activeMode": "customer",
+        "updatedAt": now.isoformat(),
+    }
 
+    if firestore_db is not None:
         try:
-            db.collection("users").document(user_id).update({
-                "shopkeeperStatus": "pending",
-                "isShopkeeper": False,
-                "shopkeeperDashboardEnabled": False,
-                "activeMode": "customer",
-                "updatedAt": now
-            })
-        except Exception as user_err:
-            print(f"[WARN] Failed to update user doc in Firestore: {user_err}")
+            firestore_db.collection("users").document(user_id).update(user_update_payload)
+        except Exception as user_f_err:
+            print(f"[WARN] Failed to update user in Firestore: {user_f_err}")
 
+    if mongo_db is not None:
         try:
-            await notify_super_admins_new_application()
-        except Exception as notif_err:
-            print(f"[WARN] Failed to send notification: {notif_err}")
+            mongo_db["users"].update_many(
+                {"$or": [{"_id": user_id}, {"id": user_id}, {"email": user_email}]},
+                {"$set": user_update_payload}
+            )
+        except Exception as user_m_err:
+            print(f"[WARN] Failed to update user in MongoDB: {user_m_err}")
 
-    except Exception as e:
-        print(f"[WARN] Exception during shopkeeper application: {e}")
+    try:
+        db.collection("users").document(user_id).update(user_update_payload)
+    except Exception:
+        pass
+
+    # 6. Notify Super Admins
+    try:
+        await notify_super_admins_new_application()
+    except Exception as notif_err:
+        print(f"[WARN] Failed to send notification: {notif_err}")
 
     return {
         "success": True,
@@ -118,38 +153,102 @@ async def get_shopkeeper_status(current_user: dict = Depends(get_current_user)):
 
 @router.get("/application/status")
 async def get_application_status(current_user: dict = Depends(get_current_user)):
+    from app.memory_store import get_all_applications
     db = get_db()
     user_id = str(current_user["_id"])
+    user_email = (current_user.get("email") or "").lower()
 
-    apps_ref = db.collection("shopkeeper_applications").where("userId", "==", user_id).stream()
-    apps = list(apps_ref)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
-    if not apps:
+    all_apps = []
+
+    # 1. Firestore lookup
+    if firestore_db is not None:
+        try:
+            for snap in firestore_db.collection("shopkeeper_applications").where("userId", "==", user_id).stream():
+                ad = snap.to_dict()
+                ad["id"] = snap.id
+                all_apps.append(ad)
+            for snap in firestore_db.collection("shopkeeper_applications").where("applicantId", "==", user_id).stream():
+                ad = snap.to_dict()
+                ad["id"] = snap.id
+                all_apps.append(ad)
+            if user_email:
+                for snap in firestore_db.collection("shopkeeper_applications").where("email", "==", user_email).stream():
+                    ad = snap.to_dict()
+                    ad["id"] = snap.id
+                    all_apps.append(ad)
+        except Exception as fe:
+            print(f"[WARN] Firestore status lookup error: {fe}")
+
+    # 2. MongoDB lookup
+    if mongo_db is not None:
+        try:
+            m_filter = {"$or": [
+                {"userId": user_id},
+                {"applicantId": user_id},
+                {"email": user_email},
+                {"applicantEmail": user_email}
+            ]}
+            for d in mongo_db["shopkeeper_applications"].find(m_filter):
+                d["id"] = str(d.get("_id", d.get("id", "")))
+                all_apps.append(d)
+            for d in mongo_db["shopkeeper_requests"].find(m_filter):
+                d["id"] = str(d.get("_id", d.get("id", "")))
+                all_apps.append(d)
+        except Exception as me:
+            print(f"[WARN] Mongo status lookup error: {me}")
+
+    # 3. Primary DB wrapper
+    try:
+        for snap in db.collection("shopkeeper_applications").where("userId", "==", user_id).stream():
+            ad = snap.to_dict()
+            ad["id"] = snap.id
+            all_apps.append(ad)
+    except Exception:
+        pass
+
+    # 4. In-memory store
+    for ma in get_all_applications():
+        if ma.get("userId") == user_id or ma.get("applicantId") == user_id or ma.get("email") == user_email:
+            all_apps.append(ma)
+
+    # Deduplicate by id
+    seen_ids = set()
+    unique_apps = []
+    for app in all_apps:
+        aid = str(app.get("id") or app.get("_id") or "")
+        if aid and aid not in seen_ids:
+            seen_ids.add(aid)
+            unique_apps.append(app)
+
+    if not unique_apps:
+        # Check current user fallback status
+        user_status = current_user.get("shopkeeperStatus", "none")
         return {
             "success": True,
-            "status": "none",
+            "status": user_status,
             "application": None,
         }
 
-    # Sort in memory descending by submittedAt
-    def get_submitted_at(doc):
-        val = doc.to_dict().get("submittedAt")
-        if val is None:
-            return datetime.min.replace(tzinfo=timezone.utc)
-        return val
-    apps.sort(key=get_submitted_at, reverse=True)
-    
-    application = apps[0].to_dict()
+    # Sort in memory descending by submittedAt / createdAt
+    def get_submitted_time(doc):
+        val = doc.get("submittedAt") or doc.get("createdAt")
+        return str(val) if val else ""
+
+    unique_apps.sort(key=get_submitted_time, reverse=True)
+    application = unique_apps[0]
 
     return {
         "success": True,
         "status": application.get("status", "pending"),
         "rejectionReason": application.get("rejectionReason"),
         "application": {
-            "id": apps[0].id,
+            "id": application.get("id") or str(application.get("_id", "")),
             "shopName": application.get("shopName", ""),
             "status": application.get("status", "pending"),
-            "submittedAt": application.get("submittedAt"),
+            "submittedAt": application.get("submittedAt") or application.get("createdAt"),
             "reviewedAt": application.get("reviewedAt"),
             "rejectionReason": application.get("rejectionReason"),
         },

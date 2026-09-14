@@ -37,17 +37,39 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
     except Exception as e:
         print(f"[WARN] Firestore fetch error in admin_dashboard: {e}")
 
-    # Fetch pending apps from Firestore + memory store
+    # Fetch pending apps from Firestore + MongoDB + memory store
     apps_list = []
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    if firestore_db is not None:
+        try:
+            for d in firestore_db.collection("shopkeeper_applications").where("status", "==", "pending").stream():
+                ad = d.to_dict()
+                ad["id"] = d.id
+                apps_list.append(ad)
+        except Exception as e:
+            print(f"[WARN] Firestore pending apps fetch error: {e}")
+
+    if mongo_db is not None:
+        try:
+            for d in mongo_db["shopkeeper_applications"].find({"status": "pending"}):
+                d["id"] = str(d.get("_id", d.get("id", "")))
+                apps_list.append(d)
+            for d in mongo_db["shopkeeper_requests"].find({"status": "pending"}):
+                d["id"] = str(d.get("_id", d.get("id", "")))
+                apps_list.append(d)
+        except Exception as e:
+            print(f"[WARN] Mongo pending apps fetch error: {e}")
+
     try:
         coll_ref = db.collection("shopkeeper_applications")
-        docs = list(coll_ref.where("status", "==", "pending").stream())
-        for d in docs:
+        for d in coll_ref.where("status", "==", "pending").stream():
             ad = d.to_dict()
             ad["id"] = d.id
             apps_list.append(ad)
     except Exception as e:
-        print(f"[WARN] Firestore pending apps fetch error in admin_dashboard: {e}")
+        pass
 
     mem_apps = get_all_applications(status="pending")
     for ma in mem_apps:
@@ -56,15 +78,12 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
     seen_ids = set()
     unique_pending = 0
     for app in apps_list:
-        aid = app.get("id")
+        aid = str(app.get("id") or app.get("_id") or "")
         if aid and aid not in seen_ids:
             seen_ids.add(aid)
             unique_pending += 1
-        elif not aid:
-            unique_pending += 1
 
     pending_apps = unique_pending
-
 
     return {
         "success": True,
@@ -89,20 +108,46 @@ async def list_applications(
     from app.memory_store import get_all_applications
     db = get_db()
     apps_list = []
-    
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
     # 1. Fetch from Firestore if available
+    if firestore_db is not None:
+        try:
+            coll_ref = firestore_db.collection("shopkeeper_applications")
+            query_ref = coll_ref.where("status", "==", status) if status else coll_ref
+            for d in query_ref.stream():
+                ad = d.to_dict()
+                ad["id"] = d.id
+                apps_list.append(ad)
+        except Exception as e:
+            print(f"[WARN] Firestore direct fetch error in list_applications: {e}")
+
+    # 2. Fetch from MongoDB Atlas if available
+    if mongo_db is not None:
+        try:
+            filter_q = {"status": status} if status else {}
+            for d in mongo_db["shopkeeper_applications"].find(filter_q):
+                d["id"] = str(d.get("_id", d.get("id", "")))
+                apps_list.append(d)
+            for d in mongo_db["shopkeeper_requests"].find(filter_q):
+                d["id"] = str(d.get("_id", d.get("id", "")))
+                apps_list.append(d)
+        except Exception as e:
+            print(f"[WARN] Mongo fetch error in list_applications: {e}")
+
+    # 3. Fetch from primary collection wrapper
     try:
         coll_ref = db.collection("shopkeeper_applications")
         query_ref = coll_ref.where("status", "==", status) if status else coll_ref
-        docs = list(query_ref.stream())
-        for d in docs:
+        for d in query_ref.stream():
             ad = d.to_dict()
             ad["id"] = d.id
             apps_list.append(ad)
     except Exception as e:
-        print(f"[WARN] Firestore fetch error in list_applications: {e}")
+        pass
 
-    # 2. Merge with memory store applications
+    # 4. Merge with memory store applications
     mem_apps = get_all_applications(status)
     for ma in mem_apps:
         apps_list.append(ma)
@@ -110,24 +155,31 @@ async def list_applications(
     seen_ids = set()
     unique_apps = []
     for app in apps_list:
-        aid = app.get("id")
+        aid = str(app.get("id") or app.get("_id") or "")
         if aid and aid not in seen_ids:
             seen_ids.add(aid)
             unique_apps.append(app)
+
+    # Sort in memory descending by submittedAt
+    def get_submitted_time(doc):
+        val = doc.get("submittedAt") or doc.get("createdAt")
+        return str(val) if val else ""
+
+    unique_apps.sort(key=get_submitted_time, reverse=True)
 
     total = len(unique_apps)
     paginated = unique_apps[skip : skip + limit]
 
     result = []
     for app in paginated:
-        user_name = app.get("applicantName") or app.get("ownerName") or "Applicant"
+        user_name = app.get("applicantName") or app.get("ownerName") or app.get("name") or "Applicant"
         result.append({
-            "id": app.get("id"),
+            "id": str(app.get("id") or app.get("_id") or ""),
             "userId": str(app.get("userId", app.get("applicantId", ""))),
             "applicantName": user_name,
             "applicantEmail": app.get("applicantEmail") or app.get("email") or "",
-            "shopName": app.get("shopName", ""),
-            "ownerName": app.get("ownerName", user_name),
+            "shopName": app.get("shopName") or app.get("shop_name") or "",
+            "ownerName": app.get("ownerName") or user_name,
             "phone": app.get("phone", ""),
             "email": app.get("email", ""),
             "address": app.get("address", ""),
@@ -151,10 +203,44 @@ async def list_applications(
 @router.get("/shopkeeper-requests/{application_id}")
 async def get_application(application_id: str, current_user: dict = Depends(require_super_admin)):
     db = get_db()
-    doc_snap = db.collection("shopkeeper_applications").document(application_id).get()
-    if not doc_snap.exists:
+    app = None
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    # Check Firestore
+    if firestore_db is not None:
+        try:
+            snap = firestore_db.collection("shopkeeper_applications").document(application_id).get()
+            if snap.exists:
+                app = snap.to_dict()
+                app["id"] = snap.id
+        except Exception:
+            pass
+
+    # Check Mongo
+    if not app and mongo_db is not None:
+        try:
+            m_doc = mongo_db["shopkeeper_applications"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            if not m_doc:
+                m_doc = mongo_db["shopkeeper_requests"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            if m_doc:
+                m_doc["id"] = str(m_doc.get("_id", m_doc.get("id", "")))
+                app = m_doc
+        except Exception:
+            pass
+
+    # Check primary collection
+    if not app:
+        try:
+            doc_snap = db.collection("shopkeeper_applications").document(application_id).get()
+            if doc_snap.exists:
+                app = doc_snap.to_dict()
+                app["id"] = doc_snap.id
+        except Exception:
+            pass
+
+    if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    app = doc_snap.to_dict()
 
     user_snap = db.collection("users").document(app.get("userId", "")).get()
     user = user_snap.to_dict() if user_snap.exists else None
@@ -162,11 +248,11 @@ async def get_application(application_id: str, current_user: dict = Depends(requ
     return {
         "success": True,
         "application": {
-            "id": doc_snap.id,
+            "id": app.get("id") or application_id,
             "userId": str(app.get("userId", "")),
-            "applicantName": user.get("fullName", user.get("name", "Unknown")) if user else "Unknown",
-            "applicantEmail": user.get("email", "") if user else "",
-            "shopName": app.get("shopName", ""),
+            "applicantName": user.get("fullName", user.get("name", "Unknown")) if user else (app.get("applicantName") or app.get("ownerName") or "Unknown"),
+            "applicantEmail": user.get("email", "") if user else (app.get("applicantEmail") or app.get("email") or ""),
+            "shopName": app.get("shopName") or app.get("shop_name") or "",
             "ownerName": app.get("ownerName", ""),
             "phone": app.get("phone", ""),
             "email": app.get("email", ""),
@@ -174,11 +260,11 @@ async def get_application(application_id: str, current_user: dict = Depends(requ
             "city": app.get("city", ""),
             "pincode": app.get("pincode", ""),
             "category": app.get("category", ""),
-            "businessProof": app.get("businessProof"),
+            "businessProof": app.get("businessProofUrl", app.get("businessProof")),
             "description": app.get("description"),
             "status": app.get("status", "pending"),
             "rejectionReason": app.get("rejectionReason"),
-            "submittedAt": app.get("submittedAt"),
+            "submittedAt": app.get("submittedAt") or app.get("createdAt"),
             "reviewedAt": app.get("reviewedAt"),
         },
     }
@@ -194,37 +280,73 @@ async def approve_application(application_id: str, current_user: dict = Depends(
     from app.memory_store import update_application_status, APPLICATIONS_STORE
     db = get_db()
     now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
     # 1. Update memory store
     update_application_status(application_id, "approved")
     app = APPLICATIONS_STORE.get(application_id, {})
 
-    # 2. Try Firestore update
+    # 2. Update Firestore if available
+    if firestore_db is not None:
+        try:
+            f_ref = firestore_db.collection("shopkeeper_applications").document(application_id)
+            f_snap = f_ref.get()
+            if f_snap.exists:
+                app = f_snap.to_dict()
+                f_ref.update({
+                    "status": "approved",
+                    "reviewedAt": now,
+                    "reviewedBy": current_user.get("_id", "admin")
+                })
+        except Exception as fe:
+            print(f"[WARN] Firestore approve error: {fe}")
+
+    # 3. Update MongoDB if available
+    if mongo_db is not None:
+        try:
+            m_doc = mongo_db["shopkeeper_applications"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            if not m_doc:
+                m_doc = mongo_db["shopkeeper_requests"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            if m_doc and not app:
+                app = m_doc
+            mongo_db["shopkeeper_applications"].update_one(
+                {"$or": [{"_id": application_id}, {"id": application_id}]},
+                {"$set": {"status": "approved", "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+            )
+            mongo_db["shopkeeper_requests"].update_one(
+                {"$or": [{"_id": application_id}, {"id": application_id}]},
+                {"$set": {"status": "approved", "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+            )
+        except Exception as me:
+            print(f"[WARN] Mongo approve error: {me}")
+
+    # 4. Update primary collection wrapper
     try:
         app_ref = db.collection("shopkeeper_applications").document(application_id)
         app_snap = app_ref.get()
         if app_snap.exists:
-            app = app_snap.to_dict()
+            if not app:
+                app = app_snap.to_dict()
             app_ref.update({
                 "status": "approved",
                 "reviewedAt": now,
                 "reviewedBy": current_user.get("_id", "admin")
             })
     except Exception as fe:
-        print(f"[WARN] Firestore approve error: {fe}")
+        pass
 
     shop_id = f"shop-{abs(hash(application_id))}"
 
-    # Try creating shop in Firestore
+    # Create shop in Firestore & MongoDB
     try:
-        shop_ref = db.collection("shops").document(shop_id)
         shop_doc = {
             "id": shop_id,
             "ownerId": app.get("applicantId", app.get("userId", "")),
             "owner_id": app.get("applicantId", app.get("userId", "")),
             "applicationId": application_id,
-            "name": app.get("shopName", "Approved Shop"),
-            "shopName": app.get("shopName", "Approved Shop"),
+            "name": app.get("shopName") or app.get("shop_name") or "Approved Shop",
+            "shopName": app.get("shopName") or app.get("shop_name") or "Approved Shop",
             "category": app.get("category", "General"),
             "description": app.get("description", ""),
             "address": app.get("address", ""),
@@ -239,41 +361,69 @@ async def approve_application(application_id: str, current_user: dict = Depends(
             "createdAt": now,
             "updatedAt": now,
         }
+        shop_ref = db.collection("shops").document(shop_id)
         shop_ref.set(shop_doc)
+
+        if mongo_db is not None:
+            try:
+                mongo_db["shops"].replace_one({"_id": shop_id}, {**shop_doc, "_id": shop_id}, upsert=True)
+            except Exception:
+                pass
+
+        if firestore_db is not None:
+            try:
+                firestore_db.collection("shops").document(shop_id).set(shop_doc)
+            except Exception:
+                pass
 
         applicant_id = app.get("applicantId", app.get("userId"))
         applicant_email = (app.get("email") or app.get("applicantEmail") or "").lower()
         user_docs = []
 
+        update_user_payload = {
+            "isShopkeeper": True,
+            "shopkeeperStatus": "approved",
+            "shopkeeperDashboardEnabled": True,
+            "activeShopId": shop_id,
+            "shop_id": shop_id,
+            "role": "shopkeeper",
+            "updatedAt": now,
+        }
+
         if applicant_id:
             try:
-                db.collection("users").document(applicant_id).update({
-                    "isShopkeeper": True,
-                    "shopkeeperStatus": "approved",
-                    "shopkeeperDashboardEnabled": True,
-                    "activeShopId": shop_id,
-                    "shop_id": shop_id,
-                    "role": "shopkeeper",
-                    "updatedAt": now,
-                })
-            except Exception as e_id:
-                print(f"[WARN] Failed to update user by applicant_id {applicant_id}: {e_id}")
+                db.collection("users").document(applicant_id).update(update_user_payload)
+            except Exception:
+                pass
+            if mongo_db is not None:
+                try:
+                    mongo_db["users"].update_one({"$or": [{"_id": applicant_id}, {"id": applicant_id}]}, {"$set": update_user_payload})
+                except Exception:
+                    pass
+            if firestore_db is not None:
+                try:
+                    firestore_db.collection("users").document(applicant_id).update(update_user_payload)
+                except Exception:
+                    pass
 
         if applicant_email:
             try:
                 user_docs = list(db.collection("users").where("email", "==", applicant_email).stream())
                 for ud in user_docs:
-                    db.collection("users").document(ud.id).update({
-                        "isShopkeeper": True,
-                        "shopkeeperStatus": "approved",
-                        "shopkeeperDashboardEnabled": True,
-                        "activeShopId": shop_id,
-                        "shop_id": shop_id,
-                        "role": "shopkeeper",
-                        "updatedAt": now,
-                    })
-            except Exception as e_em:
-                print(f"[WARN] Failed to update user by email {applicant_email}: {e_em}")
+                    db.collection("users").document(ud.id).update(update_user_payload)
+            except Exception:
+                pass
+            if mongo_db is not None:
+                try:
+                    mongo_db["users"].update_many({"email": applicant_email}, {"$set": update_user_payload})
+                except Exception:
+                    pass
+            if firestore_db is not None:
+                try:
+                    for ud in firestore_db.collection("users").where("email", "==", applicant_email).stream():
+                        firestore_db.collection("users").document(ud.id).update(update_user_payload)
+                except Exception:
+                    pass
 
         # Send notification to applicant ID and all email-matched user accounts
         notified_uids = set()
@@ -292,7 +442,7 @@ async def approve_application(application_id: str, current_user: dict = Depends(
                 except Exception as notif_e:
                     print(f"[WARN] Failed to notify shopkeeper by email doc id: {notif_e}")
     except Exception as fe2:
-        print(f"[WARN] Firestore shop creation error: {fe2}")
+        print(f"[WARN] Shop creation error: {fe2}")
 
     return {
         "success": True,
@@ -313,34 +463,87 @@ async def reject_application(
     current_user: dict = Depends(require_super_admin),
 ):
     db = get_db()
-
-    app_ref = db.collection("shopkeeper_applications").document(application_id)
-    app_snap = app_ref.get()
-    if not app_snap.exists:
-        raise HTTPException(status_code=404, detail="Application not found")
-    app = app_snap.to_dict()
-    if app["status"] != "pending":
-        raise HTTPException(status_code=400, detail=f"Application is already {app['status']}")
-
     now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
-    # Update application
-    app_ref.update({
-        "status": "rejected",
-        "rejectionReason": body.rejectionReason,
-        "reviewedAt": now,
-        "reviewedBy": current_user["_id"],
-    })
+    app = None
 
-    # Update user status
-    db.collection("users").document(app["userId"]).update({
-        "shopkeeperStatus": "rejected",
-        "rejectionReason": body.rejectionReason,
-        "updatedAt": now,
-    })
+    # Check Firestore
+    if firestore_db is not None:
+        try:
+            f_ref = firestore_db.collection("shopkeeper_applications").document(application_id)
+            f_snap = f_ref.get()
+            if f_snap.exists:
+                app = f_snap.to_dict()
+                f_ref.update({
+                    "status": "rejected",
+                    "rejectionReason": body.rejectionReason,
+                    "reviewedAt": now,
+                    "reviewedBy": current_user.get("_id", "admin"),
+                })
+        except Exception:
+            pass
 
-    # Notify user
-    await notify_shopkeeper_rejected(app["userId"], app.get("shopName", ""), body.rejectionReason)
+    # Check MongoDB
+    if mongo_db is not None:
+        try:
+            m_doc = mongo_db["shopkeeper_applications"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            if not m_doc:
+                m_doc = mongo_db["shopkeeper_requests"].find_one({"$or": [{"_id": application_id}, {"id": application_id}]})
+            if m_doc and not app:
+                app = m_doc
+            mongo_db["shopkeeper_applications"].update_one(
+                {"$or": [{"_id": application_id}, {"id": application_id}]},
+                {"$set": {"status": "rejected", "rejectionReason": body.rejectionReason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+            )
+            mongo_db["shopkeeper_requests"].update_one(
+                {"$or": [{"_id": application_id}, {"id": application_id}]},
+                {"$set": {"status": "rejected", "rejectionReason": body.rejectionReason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+            )
+        except Exception:
+            pass
+
+    # Check primary collection
+    try:
+        app_ref = db.collection("shopkeeper_applications").document(application_id)
+        app_snap = app_ref.get()
+        if app_snap.exists:
+            if not app:
+                app = app_snap.to_dict()
+            app_ref.update({
+                "status": "rejected",
+                "rejectionReason": body.rejectionReason,
+                "reviewedAt": now,
+                "reviewedBy": current_user.get("_id", "admin"),
+            })
+    except Exception:
+        pass
+
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    user_id = str(app.get("userId") or app.get("applicantId") or "")
+    if user_id:
+        try:
+            db.collection("users").document(user_id).update({
+                "shopkeeperStatus": "rejected",
+                "rejectionReason": body.rejectionReason,
+                "updatedAt": now,
+            })
+        except Exception:
+            pass
+
+        # Notify user
+        try:
+            await notify_shopkeeper_rejected(user_id, app.get("shopName", ""), body.rejectionReason)
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "message": "Application rejected.",
+    }
 
     user_snap = db.collection("users").document(app["userId"]).get()
     if user_snap.exists:
