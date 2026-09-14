@@ -13,7 +13,7 @@ from app.schemas import (
     ShopResponse, ProductResponse, AddToCartRequest,
     CartItemResponse, CreateOrderRequest, ReviewCreateRequest
 )
-from app.services.notification_service import notify_new_order
+from app.services.notification_service import notify_new_order, create_notification
 
 router = APIRouter(tags=["Customer"])
 
@@ -904,6 +904,93 @@ async def get_order(order_id: str, current_user: dict = Depends(get_current_user
             "createdAt": order.get("createdAt"),
             "updatedAt": order.get("updatedAt"),
         },
+    }
+
+
+# ─── POST /orders/{order_id}/cancel ──────────────────────────────────────────
+
+class CustomerCancelOrderRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+@router.post("/orders/{order_id}/cancel")
+async def cancel_customer_order(
+    order_id: str,
+    body: Optional[CustomerCancelOrderRequest] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Customer cancellation of placed orders."""
+    db = get_db()
+    user_id = str(current_user["_id"])
+    now = datetime.now(timezone.utc)
+
+    order_ref = db.collection("orders").document(order_id)
+    order_snap = order_ref.get()
+    if not order_snap.exists:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order = order_snap.to_dict()
+    if str(order.get("customerId", "")) != user_id and current_user.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="You can only cancel your own orders")
+
+    current_status = order.get("orderStatus", "placed")
+    if current_status not in ["placed"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel order in '{current_status}' state. Only placed orders awaiting shop acceptance can be cancelled by the customer."
+        )
+
+    reason = (body.reason if body else None) or "Cancelled by Customer"
+    order_ref.update({
+        "orderStatus": "cancelled",
+        "cancellationReason": reason,
+        "updatedAt": now
+    })
+
+    # Restore inventory stock
+    for item in order.get("items", []):
+        prod_id = item.get("productId") or item.get("id")
+        if prod_id:
+            try:
+                p_ref = db.collection("products").document(prod_id)
+                p_snap = p_ref.get()
+                if p_snap.exists:
+                    p_dict = p_snap.to_dict()
+                    cur_stock = int(p_dict.get("stock", 0) or 0)
+                    qty = int(item.get("quantity", 0) or 0)
+                    new_stock = cur_stock + qty
+                    p_ref.update({
+                        "stock": new_stock,
+                        "isAvailable": True,
+                        "is_available": True
+                    })
+            except Exception as e:
+                print(f"[WARN] Error restocking product {prod_id}: {e}")
+
+    # Notify shopkeeper
+    shop_id = order.get("shopId")
+    if shop_id:
+        try:
+            shop_snap = db.collection("shops").document(shop_id).get()
+            if shop_snap.exists:
+                owner_id = shop_snap.to_dict().get("ownerId")
+                if owner_id:
+                    await create_notification(
+                        user_id=owner_id,
+                        title="Order Cancelled by Customer",
+                        message=f"Order #{order_id[-6:].upper()} was cancelled by customer: {reason}",
+                        type="order_cancelled",
+                        action_label="View Orders",
+                        action_type="VIEW_ORDERS"
+                    )
+        except Exception as ne:
+            print(f"[WARN] Notification error on customer order cancel: {ne}")
+
+    return {
+        "success": True,
+        "message": "Order cancelled successfully",
+        "orderId": order_id,
+        "orderStatus": "cancelled"
     }
 
 

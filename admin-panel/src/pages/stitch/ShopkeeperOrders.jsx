@@ -76,7 +76,7 @@ export default function ShopkeeperOrders() {
       statusBadge = 'bg-surface-container text-trust-blue';
       borderClass = 'border-trust-blue shadow-sm';
     } else if (backendStatus === 'ready_for_pickup') {
-      status = 'Completed';
+      status = 'Active';
       statusLabel = 'Ready for Pickup';
       statusBadge = 'bg-tertiary-fixed text-on-tertiary-fixed-variant';
       borderClass = 'border-success-green shadow-sm';
@@ -202,12 +202,26 @@ export default function ShopkeeperOrders() {
   };
 
 
+  const rejectOrder = async (id) => {
+    const reason = prompt("Enter reason for rejecting this order (optional):") || "Rejected by merchant";
+    try {
+      await api.put(`/api/shopkeeper/orders/${id}/status`, { status: 'cancelled', cancellationReason: reason });
+      fetchOrders(false);
+    } catch (err) {
+      console.error("Failed to reject order:", err);
+      setErrorMessage(err.response?.data?.detail || "Failed to reject order");
+    }
+  };
+
   const renderCardButtons = (order) => {
     if (order.statusLabel === 'New Order') {
       return (
         <div className="flex flex-col gap-xs">
-          <button className="w-full py-sm bg-marketplace-orange text-on-primary rounded-lg font-label-sm hover:brightness-110 active:scale-[0.98] transition-all" onClick={() => acceptOrder(order.id)}>Accept Order</button>
-          <button className="w-full py-sm bg-surface-container text-marketplace-orange rounded-lg font-label-sm hover:bg-secondary-fixed active:scale-[0.98] transition-all" onClick={() => handleAlert("Contacting customer...")}>Contact Customer</button>
+          <button className="w-full py-sm bg-marketplace-orange text-on-primary rounded-lg font-label-sm hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer" onClick={() => acceptOrder(order.id)}>Accept Order</button>
+          <div className="flex gap-xs">
+            <button className="flex-1 py-sm bg-surface-container text-marketplace-orange rounded-lg font-label-sm hover:bg-secondary-fixed active:scale-[0.98] transition-all cursor-pointer" onClick={() => handleAlert("Contacting customer...")}>Contact</button>
+            <button className="flex-1 py-sm bg-error-red/10 text-error-red rounded-lg font-label-sm hover:bg-error-red/20 active:scale-[0.98] transition-all cursor-pointer font-semibold" onClick={() => rejectOrder(order.id)}>Reject</button>
+          </div>
         </div>
       );
     } else if (order.statusLabel === 'Preparing') {

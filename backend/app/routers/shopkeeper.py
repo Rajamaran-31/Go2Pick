@@ -182,16 +182,51 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
         except Exception:
             pass
 
+    # Verify that the user has an approved application or status
+    is_approved = (
+        (user_doc and (user_doc.get("shopkeeperStatus") == "approved" or user_doc.get("isShopkeeper") is True or user_doc.get("role") == "shopkeeper")) or
+        current_user.get("shopkeeperStatus") == "approved" or
+        current_user.get("isShopkeeper") is True or
+        current_user.get("role") == "shopkeeper" or
+        current_user.get("role") == "super_admin"
+    )
+
+    active_shop_id = (user_doc.get("activeShopId") if user_doc else None) or current_user.get("activeShopId") or (user_doc.get("shop_id") if user_doc else None) or current_user.get("shop_id")
+
+    if not is_approved:
+        # Check shopkeeper_applications collection
+        apps_ref = list(db.collection("shopkeeper_applications").where("userId", "==", user_id).stream())
+        if not apps_ref and email:
+            apps_ref = list(db.collection("shopkeeper_applications").where("email", "==", email).stream())
+        for a in apps_ref:
+            a_data = a.to_dict()
+            if a_data.get("status") == "approved":
+                is_approved = True
+                if not active_shop_id and a_data.get("shopId"):
+                    active_shop_id = a_data.get("shopId")
+                break
+
+    if not is_approved:
+        raise HTTPException(
+            status_code=403,
+            detail="Your shop application has not been approved by the Super Admin yet."
+        )
+
+    update_payload = {
+        "isShopkeeper": True,
+        "shopkeeperStatus": "approved",
+        "shopkeeperDashboardEnabled": True,
+        "activeMode": "shopkeeper",
+        "currentMode": "shopkeeper",
+        "role": "shopkeeper",
+        "updatedAt": datetime.now(timezone.utc),
+    }
+    if active_shop_id:
+        update_payload["activeShopId"] = str(active_shop_id)
+        update_payload["shop_id"] = str(active_shop_id)
+
     try:
-        db.collection("users").document(user_id).update({
-            "isShopkeeper": True,
-            "shopkeeperStatus": "approved",
-            "shopkeeperDashboardEnabled": True,
-            "activeMode": "shopkeeper",
-            "currentMode": "shopkeeper",
-            "role": "shopkeeper",
-            "updatedAt": datetime.now(timezone.utc),
-        })
+        db.collection("users").document(user_id).update(update_payload)
     except Exception as update_err:
         print(f"[WARN] Failed to update user doc in enable_dashboard: {update_err}")
 

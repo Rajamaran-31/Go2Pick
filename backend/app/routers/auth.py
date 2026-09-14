@@ -30,7 +30,7 @@ def _user_to_response(user: dict) -> UserResponse:
     dash_enabled = user.get("shopkeeperDashboardEnabled", False)
     active_shop = str(user["activeShopId"]) if user.get("activeShopId") else (str(user["shop_id"]) if user.get("shop_id") else None)
 
-    if email_val == "rajamaran32@gmail.com" or sk_status == "approved" or role == "shopkeeper" or is_sk:
+    if sk_status == "approved" or role == "shopkeeper" or is_sk:
         if role != "super_admin":
             role = "shopkeeper"
         is_sk = True
@@ -543,11 +543,10 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
 
     if new_mode == "shopkeeper":
         is_allowed = False
-        active_shop_id = "shop-grany-groceries"
+        active_shop_id = current_user.get("activeShopId") or current_user.get("shop_id")
 
-        # Check 1: User doc flags or rajamaran32 email
+        # Check 1: User doc flags
         if (
-            email_lower == "rajamaran32@gmail.com" or
             current_user.get("isShopkeeper") is True or
             current_user.get("shopkeeperStatus") == "approved" or
             current_user.get("role") == "shopkeeper"
@@ -555,7 +554,7 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
             is_allowed = True
 
         # Check 2: Shops collection by ownerId or email
-        if not is_allowed:
+        if not active_shop_id or not is_allowed:
             shops_by_owner = list(db.collection("shops").where("ownerId", "==", user_id).stream())
             shops_by_email = list(db.collection("shops").where("email", "==", email_lower).stream()) if email_lower else []
             combined_shops = shops_by_owner + shops_by_email
@@ -565,6 +564,19 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
                     is_allowed = True
                     active_shop_id = s.id
                     break
+
+        # Check 3: Check approved applications for assigned shopId
+        if not active_shop_id:
+            apps = list(db.collection("shopkeeper_applications").where("userId", "==", user_id).stream())
+            if not apps and email_lower:
+                apps = list(db.collection("shopkeeper_applications").where("email", "==", email_lower).stream())
+            for a in apps:
+                a_data = a.to_dict()
+                if a_data.get("status") == "approved":
+                    is_allowed = True
+                    if a_data.get("shopId"):
+                        active_shop_id = a_data.get("shopId")
+                        break
 
         if not is_allowed:
             raise HTTPException(

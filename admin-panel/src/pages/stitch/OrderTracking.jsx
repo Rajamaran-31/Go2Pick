@@ -57,6 +57,26 @@ export default function OrderTracking() {
     openWhatsApp(phone, message);
   };
 
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelOrder = async () => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+    try {
+      setIsCancelling(true);
+      await api.post(`/api/orders/${orderId}/cancel`, { reason: "Cancelled by customer" });
+      const res = await api.get(`/api/orders/${orderId}`);
+      if (res.data?.success && res.data?.order) {
+        setOrder(res.data.order);
+      }
+      alert("Order has been cancelled successfully.");
+    } catch (err) {
+      console.error("Cancel order error:", err);
+      alert(err.response?.data?.detail || "Failed to cancel order.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-on-surface-variant">Loading order details...</div>;
   if (!displayOrder) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-md px-lg text-center">
@@ -154,6 +174,45 @@ export default function OrderTracking() {
         <div className="text-center text-on-surface-variant pt-12">Loading tracking details...</div>
       ) : (
         <div className="space-y-lg">
+          {/* Back Navigation */}
+          <div 
+            className="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-trust-blue transition-colors w-fit" 
+            onClick={() => navigate('/orders')}
+          >
+            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <span className="text-sm font-semibold">Back to Orders</span>
+          </div>
+
+          {/* Counter Pickup Verification Code Card */}
+          {displayOrder.pickupCode && status !== 'cancelled' && status !== 'canceled' && (
+            <section className="bg-gradient-to-r from-teal-700 via-emerald-700 to-teal-800 text-white rounded-2xl p-6 shadow-lg flex flex-col items-center justify-center text-center relative overflow-hidden border border-emerald-600">
+              <div className="absolute top-0 right-0 -mr-6 -mt-6 w-28 h-28 rounded-full bg-white/10 pointer-events-none"></div>
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-200 mb-1">
+                Counter Pickup Verification Code
+              </span>
+              <div className="flex items-center gap-3 my-2">
+                <span className="font-mono text-3xl md:text-4xl font-black tracking-widest bg-white/20 px-6 py-2 rounded-xl backdrop-blur-md border border-white/30 shadow-inner select-all">
+                  {displayOrder.pickupCode}
+                </span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(displayOrder.pickupCode);
+                    alert("Pickup verification code copied to clipboard!");
+                  }}
+                  title="Copy pickup code"
+                  className="p-2.5 bg-white/20 hover:bg-white/30 rounded-xl active:scale-95 transition-all text-white cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">content_copy</span>
+                </button>
+              </div>
+              <p className="text-xs text-emerald-100 mt-1 max-w-sm">
+                {status === 'ready_for_pickup'
+                  ? "🎉 Your order is ready! Present this code at the shop counter to pick up your parcel."
+                  : "Keep this code ready. Present it at the counter once your order is ready for pickup."}
+              </p>
+            </section>
+          )}
+
           {/* Live Status Tracker Card */}
           <section className="bg-surface-container-lowest rounded-xl p-lg shadow-sm">
             <div className="flex items-center justify-between mb-xl">
@@ -216,6 +275,36 @@ export default function OrderTracking() {
                 "Successfully collected. Enjoy!"
               )}
             </div>
+
+            {/* Cancel Order Action for placed orders */}
+            {status === 'placed' && (
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <p className="text-xs text-slate-500">Need to make changes or change your mind?</p>
+                <button
+                  disabled={isCancelling}
+                  onClick={handleCancelOrder}
+                  className="text-xs font-bold text-error-red hover:bg-error-red/10 border border-error-red/30 px-3 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer"
+                >
+                  {isCancelling ? "Cancelling..." : "Cancel Order"}
+                </button>
+              </div>
+            )}
+
+            {/* Post-Pickup Review Prompt */}
+            {(status === 'completed' || status === 'delivered') && (
+              <div className="mt-6 pt-4 border-t border-slate-100 bg-amber-50/70 p-4 rounded-xl flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-sm text-slate-800">Order Completed 🎉</h4>
+                  <p className="text-xs text-slate-600">Share your pickup experience with this shop</p>
+                </div>
+                <button
+                  onClick={() => navigate(`/shop-reviews/${displayOrder.shopId}?orderId=${displayOrder.id}`)}
+                  className="bg-marketplace-orange hover:brightness-110 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  Rate & Review
+                </button>
+              </div>
+            )}
           </section>
 
           {/* Shop Contact Section */}

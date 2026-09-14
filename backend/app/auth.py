@@ -142,9 +142,8 @@ async def get_current_user(
     if user.get("email", "").lower() == get_settings().ADMIN_EMAIL.lower():
         user["role"] = "super_admin"
 
-    # Ensure rajamaran32@gmail.com and approved shopkeepers have shopkeeper context
-    email_clean = (user.get("email") or "").lower()
-    if email_clean == "rajamaran32@gmail.com" or user.get("shopkeeperStatus") == "approved":
+    # Ensure approved shopkeepers have shopkeeper context
+    if user.get("shopkeeperStatus") == "approved":
         if user.get("role") != "super_admin":
             user["role"] = "shopkeeper"
         user["isShopkeeper"] = True
@@ -171,7 +170,7 @@ async def require_customer(current_user: dict = Depends(get_current_user)) -> di
 
 async def require_shopkeeper(current_user: dict = Depends(get_current_user)) -> dict:
     email = (current_user.get("email") or "").lower()
-    if current_user.get("role") == "super_admin" or email == "rajamaran32@gmail.com":
+    if current_user.get("role") == "super_admin":
         current_user["isShopkeeper"] = True
         current_user["shopkeeperStatus"] = "approved"
         current_user["shopkeeperDashboardEnabled"] = True
