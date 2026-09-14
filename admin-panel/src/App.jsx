@@ -88,7 +88,7 @@ function ShopkeeperRoute() {
 
   if (!token) return <Navigate to="/" replace />;
 
-  if (user?.isShopkeeper !== true || user?.shopkeeperStatus !== 'approved') {
+  if (user?.role !== 'super_admin' && (user?.isShopkeeper !== true || user?.shopkeeperStatus !== 'approved')) {
     alert("Your shopkeeper access is not approved yet.");
     return <Navigate to="/profile" replace />;
   }

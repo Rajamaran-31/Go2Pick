@@ -63,7 +63,33 @@ export default function CustomerProfile() {
 </section>
 
 <section className="bg-secondary-container rounded-xl p-lg flex flex-col md:flex-row items-center justify-between gap-md shadow-md text-on-secondary-container">
-{user?.isShopkeeper === true || user?.shopkeeperStatus === 'approved' || user?.activeShopId || user?.role === 'shopkeeper' ? (
+{user?.role === 'super_admin' ? (
+  <>
+    <div className="flex-1 space-y-xs text-center md:text-left">
+      <div className="flex items-center justify-center md:justify-start gap-2">
+        <span className="material-symbols-outlined text-primary text-[24px]">verified_user</span>
+        <h3 className="font-title-md text-title-md font-bold text-primary">Super Admin Command Center</h3>
+      </div>
+      <p className="font-body-md text-body-md opacity-90">You have universal access across the platform. Seamlessly jump between the Customer Store, Merchant Portal, and Admin Console.</p>
+    </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <button 
+        onClick={() => navigate('/admin')}
+        className="px-5 py-2.5 rounded-full text-xs font-bold transition-all bg-primary hover:bg-primary-container text-white shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+      >
+        <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+        Admin Dashboard
+      </button>
+      <button 
+        onClick={() => navigate('/shopkeeper')}
+        className="px-5 py-2.5 rounded-full text-xs font-bold transition-all bg-marketplace-orange hover:opacity-90 text-white shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+      >
+        <span className="material-symbols-outlined text-[16px]">point_of_sale</span>
+        Shopkeeper Portal
+      </button>
+    </div>
+  </>
+) : user?.isShopkeeper === true || user?.shopkeeperStatus === 'approved' || user?.activeShopId || user?.role === 'shopkeeper' ? (
   <>
     <div className="flex-1 space-y-xs text-center md:text-left">
     <h3 className="font-title-md text-title-md font-bold">🎉 Your shop is approved by the superadmin!</h3>
@@ -111,7 +137,7 @@ export default function CustomerProfile() {
     <h3 className="font-title-md text-title-md font-bold">Turn your passion into profit</h3>
     <p className="font-body-md text-body-md opacity-90">Join thousands of sellers on Go2Pick. Start managing your own shop today with our precise shopkeeper tools.</p>
     </div>
-    <button onClick={() => navigate('/register-shop')} className="bg-on-secondary-container text-on-secondary px-lg py-sm rounded-full font-label-sm text-label-sm hover:opacity-90 transition-all active:scale-95 flex items-center gap-xs">
+    <button onClick={() => navigate('/register-shop')} className="bg-on-secondary-container text-on-secondary px-lg py-sm rounded-full font-label-sm text-label-sm hover:opacity-90 transition-all active:scale-95 flex items-center gap-xs cursor-pointer">
     Become a Shopkeeper
     <span className="material-symbols-outlined">arrow_forward</span>
     </button>

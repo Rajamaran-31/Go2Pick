@@ -132,8 +132,30 @@ export default function CustomerHeader() {
         {/* User Right Section */}
         <div className="hidden md:flex items-center gap-4">
           
-          {/* Shopkeeper Mode Switch */}
-          {isShopkeeperUser && (
+          {/* Super Admin Direct Access Buttons */}
+          {user?.role === 'super_admin' && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => navigate('/admin')}
+                className="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-primary text-white shadow-sm hover:opacity-90 active:scale-95 flex items-center gap-1 cursor-pointer"
+                title="Super Admin Console"
+              >
+                <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                <span>Admin Panel</span>
+              </button>
+              <button 
+                onClick={() => navigate('/shopkeeper')}
+                className="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-marketplace-orange text-white shadow-sm hover:opacity-90 active:scale-95 flex items-center gap-1 cursor-pointer"
+                title="Shopkeeper Dashboard"
+              >
+                <span className="material-symbols-outlined text-[16px]">point_of_sale</span>
+                <span>Shopkeeper</span>
+              </button>
+            </div>
+          )}
+
+          {/* Shopkeeper Mode Switch (for merchants) */}
+          {user?.role !== 'super_admin' && isShopkeeperUser && (
             <button 
               disabled={isSwitching}
               onClick={handleSwitchMode}
@@ -275,7 +297,32 @@ export default function CustomerHeader() {
             </Link>
           )}
 
-          {isShopkeeperUser && (
+          {user?.role === 'super_admin' && (
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+              <button 
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/admin');
+                }}
+                className="w-full py-2 bg-primary text-white rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                <span>Super Admin Panel</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/shopkeeper');
+                }}
+                className="w-full py-2 bg-marketplace-orange text-white rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">point_of_sale</span>
+                <span>Shopkeeper Portal</span>
+              </button>
+            </div>
+          )}
+
+          {user?.role !== 'super_admin' && isShopkeeperUser && (
             <button 
               disabled={isSwitching}
               onClick={() => {

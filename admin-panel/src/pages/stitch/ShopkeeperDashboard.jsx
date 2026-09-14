@@ -153,9 +153,19 @@ export default function ShopkeeperDashboard() {
     </span>
   )}
 </div>
+{user?.role === 'super_admin' && (
+  <button 
+    onClick={() => navigate('/admin')}
+    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:opacity-90 active:scale-95 cursor-pointer"
+    title="Back to Admin Dashboard"
+  >
+    <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+    <span>Admin</span>
+  </button>
+)}
 <button 
   disabled={isSwitching}
-  className={`hidden md:flex font-label-sm text-label-sm text-on-surface-variant hover:bg-surface-container-high transition-colors px-md py-2 rounded-xl border border-border-gray ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`} 
+  className={`flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant hover:bg-surface-container-high transition-colors px-3 py-1.5 rounded-xl border border-border-gray cursor-pointer ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`} 
   onClick={async () => {
     try {
       setIsSwitching(true);
@@ -174,7 +184,8 @@ export default function ShopkeeperDashboard() {
     }
   }}
 >
-    {isSwitching ? "Switching..." : "Switch to Customer"}
+    <span className="material-symbols-outlined text-[16px]">storefront</span>
+    <span className="hidden sm:inline">{isSwitching ? "Switching..." : "Customer Mode"}</span>
 </button>
 <div className="cursor-pointer w-10 h-10 rounded-full overflow-hidden border-2 border-marketplace-orange/20" onClick={() => navigate('/shopkeeper/profile')}>
   {shop?.imageUrl || shop?.shopImageUrl || shop?.image ? (
@@ -392,6 +403,18 @@ export default function ShopkeeperDashboard() {
           <button onClick={() => { setIsDrawerOpen(false); navigate('/shopkeeper/reports'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">analytics</span> Reports</button>
           <button onClick={() => { setIsDrawerOpen(false); navigate('/shopkeeper/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
           <button onClick={() => { setIsDrawerOpen(false); navigate('/shopkeeper/support'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">support_agent</span> Support Tickets</button>
+
+          <div className="border-t border-border-gray/50 pt-2 mt-2">
+            <p className="px-2 py-1 text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Switch Portal</p>
+            <button onClick={() => { setIsDrawerOpen(false); navigate('/'); }} className="w-full text-left p-2 hover:bg-trust-blue/10 hover:text-trust-blue rounded-lg flex items-center gap-2 font-semibold text-sm transition-colors">
+              <span className="material-symbols-outlined text-[20px] text-trust-blue">storefront</span> Customer Store
+            </button>
+            {user?.role === 'super_admin' && (
+              <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="w-full text-left p-2 hover:bg-primary/10 hover:text-primary rounded-lg flex items-center gap-2 font-semibold text-sm transition-colors">
+                <span className="material-symbols-outlined text-[20px] text-primary">admin_panel_settings</span> Super Admin Panel
+              </button>
+            )}
+          </div>
       </div>
     </div>
   </div>

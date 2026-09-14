@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
 import { useAppContext } from '../../context/AppContext';
+import AdminNavDrawer from '../../components/AdminNavDrawer';
 
 export default function UserManagementwithNavDrawer() {
   const navigate = useNavigate();
@@ -60,51 +61,30 @@ export default function UserManagementwithNavDrawer() {
     <>
       
 
-{isDrawerOpen && <div className="drawer-overlay fixed inset-0 bg-black/50 z-[60]" id="drawerOverlay" onClick={() => setIsDrawerOpen(false)}></div>}
-
-<aside className={`fixed top-0 left-0 h-full w-80 bg-surface dark:bg-surface-container shadow-xl z-[70] transform transition-transform duration-300 ease-in-out flex flex-col py-lg ${isDrawerOpen ? "translate-x-0" : "-translate-x-full"}`}>
-<div className="px-lg mb-xl flex items-center gap-md">
-<div className="h-12 w-12 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-title-md">
-            SA
-        </div>
-<div>
-<h3 className="font-title-md text-on-surface">Super Admin</h3>
-<p className="font-label-sm text-on-surface-variant">Platform Administrator</p>
-<span className="text-[10px] uppercase font-bold text-primary tracking-wider">Verified Account</span>
-</div>
-</div>
-<nav className="flex-1 space-y-1">
-<button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="w-full flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-highest transition-all mx-2 rounded-lg font-body-md cursor-pointer">
-<span className="material-symbols-outlined">dashboard</span>
-<span>Dashboard</span>
-</button>
-<button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="w-full flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-highest transition-all mx-2 rounded-lg font-body-md cursor-pointer">
-<span className="material-symbols-outlined">rule</span>
-<span>Shop Approvals</span>
-</button>
-<button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="w-full flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-highest transition-all mx-2 rounded-lg font-body-md cursor-pointer">
-<span className="material-symbols-outlined">storefront</span>
-<span>Shop Management</span>
-</button>
-<button className="w-full flex items-center gap-md px-lg py-md bg-secondary-container text-on-secondary-container rounded-lg mx-2 font-body-md cursor-pointer">
-<span className="material-symbols-outlined">group</span>
-<span>User Management</span>
-</button>
-<button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-md px-lg py-md text-on-surface-variant hover:bg-surface-container-highest transition-all mx-2 rounded-lg font-body-md cursor-pointer">
-<span className="material-symbols-outlined">settings</span>
-<span>Platform Settings</span>
-</button>
-</nav>
-</aside>
-
 <header className="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-lg py-sm bg-surface-slate dark:bg-inverse-surface shadow-sm">
 <div className="flex items-center gap-sm">
-<button className="p-xs rounded-full hover:bg-surface-container-high transition-colors active:scale-95" onClick={() => navigate('/admin')}>
+<button className="p-xs rounded-full hover:bg-surface-container-high transition-colors active:scale-95 cursor-pointer" onClick={() => navigate('/admin')}>
 <span className="material-symbols-outlined text-primary dark:text-inverse-primary" style={{fontSize: '24px'}}>arrow_back</span>
 </button>
-<h1 className="font-headline-lg text-headline-lg font-bold text-primary dark:text-inverse-primary ml-xs">Marketplace Admin</h1>
+<h1 className="font-headline-lg text-headline-lg font-bold text-primary dark:text-inverse-primary ml-xs">Users & Access</h1>
 </div>
-<div className="flex items-center gap-md">
+<div className="flex items-center gap-2 md:gap-3">
+<button 
+  onClick={() => navigate('/')} 
+  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-trust-blue/10 text-trust-blue hover:bg-trust-blue hover:text-white text-xs font-bold transition-all border border-trust-blue/20 shadow-sm cursor-pointer"
+  title="Switch to Customer Storefront"
+>
+  <span className="material-symbols-outlined text-[16px]">storefront</span>
+  <span>Customer Store</span>
+</button>
+<button 
+  onClick={() => navigate('/shopkeeper')} 
+  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-marketplace-orange/10 text-marketplace-orange hover:bg-marketplace-orange hover:text-white text-xs font-bold transition-all border border-marketplace-orange/20 shadow-sm cursor-pointer"
+  title="Switch to Shopkeeper Dashboard"
+>
+  <span className="material-symbols-outlined text-[16px]">point_of_sale</span>
+  <span>Shopkeeper Portal</span>
+</button>
 <button className="p-xs rounded-full hover:bg-surface-container-high transition-colors duration-200 active:scale-95 transition-transform relative" onClick={() => navigate('/admin/notifications')}>
 <span className="material-symbols-outlined text-on-surface-variant dark:text-outline">notifications</span>
 {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-error-red rounded-full"></span>}
@@ -209,22 +189,7 @@ export default function UserManagementwithNavDrawer() {
 </div>
 </main>
 
-{isDrawerOpen && (
-  <div className="fixed inset-0 z-[200] flex">
-    <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
-    <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
-      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
-      <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
-      <div className="flex flex-col gap-2">
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
-         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
-      </div>
-    </div>
-  </div>
-)}
+<AdminNavDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
     </>
   );
 }

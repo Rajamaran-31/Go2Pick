@@ -29,38 +29,38 @@ export default function BottomTabBar() {
       >
         <Link 
           to="/admin" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname === '/admin' ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
+          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname === '/admin' ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-primary'}`}
         >
           <span className="material-symbols-outlined text-[22px] md:text-[24px]">dashboard</span>
           <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Dashboard</span>
         </Link>
         <Link 
           to="/admin/approvals" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.includes('/admin/approvals') ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
+          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.includes('/admin/approvals') ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-primary'}`}
         >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">rule</span>
+          <span className="material-symbols-outlined text-[22px] md:text-[24px]">how_to_reg</span>
           <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Approvals</span>
         </Link>
         <Link 
-          to="/admin/users" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.includes('/admin/users') ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
-        >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">group</span>
-          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Users</span>
-        </Link>
-        <Link 
           to="/admin/shops" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.includes('/admin/shops') ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
+          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.includes('/admin/shops') ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-primary'}`}
         >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">storefront</span>
+          <span className="material-symbols-outlined text-[22px] md:text-[24px]">store</span>
           <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Shops</span>
         </Link>
         <Link 
-          to="/admin/settings" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.includes('/admin/settings') ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
+          to="/shopkeeper" 
+          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname.startsWith('/shopkeeper') ? 'text-marketplace-orange font-bold' : 'text-on-surface-variant hover:text-marketplace-orange'}`}
         >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">settings</span>
-          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Settings</span>
+          <span className="material-symbols-outlined text-[22px] md:text-[24px]">point_of_sale</span>
+          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Merchant</span>
+        </Link>
+        <Link 
+          to="/" 
+          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 transition-all ${location.pathname === '/' ? 'text-trust-blue font-bold' : 'text-on-surface-variant hover:text-trust-blue'}`}
+        >
+          <span className="material-symbols-outlined text-[22px] md:text-[24px]">storefront</span>
+          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Customer</span>
         </Link>
       </nav>
     );
@@ -99,19 +99,29 @@ export default function BottomTabBar() {
           <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Products</span>
         </Link>
         <Link 
-          to="/shopkeeper/reports" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center mx-1 py-1 rounded-xl transition-all ${location.pathname.includes('/shopkeeper/reports') ? 'text-marketplace-orange bg-secondary-fixed' : 'text-on-surface-variant hover:text-marketplace-orange'}`}
+          to="/" 
+          className="flex-1 min-w-0 flex flex-col items-center justify-center mx-1 py-1 rounded-xl transition-all text-on-surface-variant hover:text-trust-blue"
         >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">analytics</span>
-          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Reports</span>
+          <span className="material-symbols-outlined text-[22px] md:text-[24px]">storefront</span>
+          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Customer</span>
         </Link>
-        <Link 
-          to="/shopkeeper/settings" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center mx-1 py-1 rounded-xl transition-all ${location.pathname.includes('/shopkeeper/settings') ? 'text-marketplace-orange bg-secondary-fixed' : 'text-on-surface-variant hover:text-marketplace-orange'}`}
-        >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">settings</span>
-          <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Settings</span>
-        </Link>
+        {user?.role === 'super_admin' ? (
+          <Link 
+            to="/admin" 
+            className="flex-1 min-w-0 flex flex-col items-center justify-center mx-1 py-1 rounded-xl transition-all text-primary hover:bg-primary/10"
+          >
+            <span className="material-symbols-outlined text-[22px] md:text-[24px]">admin_panel_settings</span>
+            <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Admin</span>
+          </Link>
+        ) : (
+          <Link 
+            to="/shopkeeper/settings" 
+            className={`flex-1 min-w-0 flex flex-col items-center justify-center mx-1 py-1 rounded-xl transition-all ${location.pathname.includes('/shopkeeper/settings') ? 'text-marketplace-orange bg-secondary-fixed' : 'text-on-surface-variant hover:text-marketplace-orange'}`}
+          >
+            <span className="material-symbols-outlined text-[22px] md:text-[24px]">settings</span>
+            <span className="font-label-sm text-[11px] md:text-label-sm mt-1 truncate w-full text-center">Settings</span>
+          </Link>
+        )}
       </nav>
     );
   }
