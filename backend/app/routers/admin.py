@@ -29,7 +29,7 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
     mongo_db = getattr(db, "mongo_db", None)
 
     try:
-        total_users = sum(1 for doc in db.collection("users").stream() if doc.to_dict().get("role") != "super_admin")
+        total_users = sum(1 for _ in db.collection("users").stream())
         total_shops = sum(1 for _ in db.collection("shops").stream())
         total_orders = sum(1 for _ in db.collection("orders").stream())
         for doc in db.collection("orders").stream():
@@ -47,7 +47,7 @@ async def admin_dashboard(current_user: dict = Depends(require_super_admin)):
 
     if total_users == 0 and mongo_db is not None:
         try:
-            total_users = mongo_db["users"].count_documents({"role": {"$ne": "super_admin"}})
+            total_users = mongo_db["users"].count_documents({})
         except Exception:
             pass
 
@@ -778,18 +778,22 @@ async def list_users(
     current_user: dict = Depends(require_super_admin),
 ):
     db = get_db()
+    firestore_db = getattr(db, "firestore_db", None)
     mongo_db = getattr(db, "mongo_db", None)
 
     users_data = []
+
+    # 1. Primary wrapper stream
     try:
         for doc in db.collection("users").stream():
             ud = doc.to_dict()
-            ud["id"] = doc.id
+            ud["id"] = str(doc.id or ud.get("id", ud.get("_id", "")))
             users_data.append(ud)
     except Exception as e:
-        print(f"[WARN] Firestore users fetch error: {e}")
+        print(f"[WARN] Primary users fetch error: {e}")
 
-    if (not users_data or len(users_data) <= 1) and mongo_db is not None:
+    # 2. Direct MongoDB fetch
+    if mongo_db is not None:
         try:
             for u in mongo_db["users"].find():
                 u["id"] = str(u.get("_id", u.get("id", "")))
@@ -797,19 +801,34 @@ async def list_users(
         except Exception:
             pass
 
-    seen_ids = set()
+    # 3. Direct Firestore fetch
+    if firestore_db is not None:
+        try:
+            for doc in firestore_db.collection("users").stream():
+                ud = doc.to_dict()
+                ud["id"] = str(doc.id or ud.get("id", ""))
+                users_data.append(ud)
+        except Exception:
+            pass
+
+    seen_keys = set()
     unique_users = []
     for u in users_data:
-        uid = str(u.get("id") or u.get("_id") or "")
-        if uid and uid not in seen_ids:
-            seen_ids.add(uid)
+        uid = str(u.get("id") or u.get("_id") or "").strip()
+        email = (u.get("email") or "").strip().lower()
+        key = email if email else uid
+        if key and key not in seen_keys:
+            seen_keys.add(key)
+            if uid:
+                seen_keys.add(uid)
+            if email:
+                seen_keys.add(email)
             unique_users.append(u)
 
-    # Filter role != super_admin
-    all_users = [u for u in unique_users if u.get("role") != "super_admin"]
+    all_users = list(unique_users)
 
     if role:
-        all_users = [u for u in all_users if u.get("role") == role]
+        all_users = [u for u in all_users if (u.get("role") or "").lower() == role.lower()]
 
     if search:
         search_lower = search.lower()
@@ -825,7 +844,10 @@ async def list_users(
 
     all_users.sort(key=get_created_at, reverse=True)
     total = len(all_users)
-    paginated_users = all_users[skip : skip + limit]
+
+    limit_int = int(limit) if isinstance(limit, (int, str)) and str(limit).isdigit() else 50
+    skip_int = int(skip) if isinstance(skip, (int, str)) and str(skip).isdigit() else 0
+    paginated_users = all_users[skip_int : skip_int + limit_int]
 
     result = []
     for u in paginated_users:

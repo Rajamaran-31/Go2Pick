@@ -203,11 +203,36 @@ class Database:
         mongo_url = settings.MONGODB_URL or "mongodb://rajamaran32:maran2007@ac-xvjluyj-shard-00-00.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-01.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-02.hobeyx3.mongodb.net:27017/?ssl=true&authSource=admin&retryWrites=true&w=majority"
         db_name = settings.DATABASE_NAME or "go2pick"
         try:
-            mongo_client = pymongo.MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
+            ca_file = None
+            try:
+                import certifi
+                ca_file = certifi.where()
+            except Exception:
+                pass
+
+            client_kwargs: Dict[str, Any] = {
+                "serverSelectionTimeoutMS": 5000,
+                "connectTimeoutMS": 5000,
+                "socketTimeoutMS": 5000,
+                "tlsAllowInvalidCertificates": True,
+            }
+            if ca_file:
+                client_kwargs["tlsCAFile"] = ca_file
+
+            mongo_client = pymongo.MongoClient(mongo_url, **client_kwargs)
+            mongo_client.admin.command('ping')
             mongo_db = mongo_client[db_name]
             print(f"Successfully connected to MongoDB Atlas database: {db_name}")
         except Exception as me:
             print(f"[WARN] MongoDB Atlas connection error: {me}")
+            try:
+                mongo_client = pymongo.MongoClient(mongo_url, tlsAllowInvalidCertificates=True, serverSelectionTimeoutMS=4000)
+                mongo_client.admin.command('ping')
+                mongo_db = mongo_client[db_name]
+                print(f"Connected to MongoDB Atlas with fallback TLS: {db_name}")
+            except Exception as me2:
+                print(f"[WARN] MongoDB Atlas fallback failed: {me2}")
+                mongo_db = None
 
         # 2. Try Firebase Admin SDK
         fs_db = None
@@ -222,6 +247,9 @@ class Database:
                     if "private_key" in cred_dict and isinstance(cred_dict["private_key"], str):
                         cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
                     cred = credentials.Certificate(cred_dict)
+                    firebase_admin.initialize_app(cred, {
+                        'storageBucket': getattr(settings, 'FIREBASE_STORAGE_BUCKET', 'go2pick-345bf.firebasestorage.app')
+                    })
                 else:
                     resolved_path = resolve_firebase_credentials(creds_config)
                     if Path(resolved_path).exists():
