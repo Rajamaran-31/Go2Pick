@@ -585,27 +585,52 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
             )
 
         # Auto-update user document in DB to permanently grant shopkeeper access
+        sk_update = {
+            "isShopkeeper": True,
+            "shopkeeperStatus": "approved",
+            "shopkeeperDashboardEnabled": True,
+            "activeMode": "shopkeeper",
+            "currentMode": "shopkeeper",
+            "updatedAt": datetime.now(timezone.utc)
+        }
+        if active_shop_id:
+            sk_update["activeShopId"] = active_shop_id
+            sk_update["shop_id"] = active_shop_id
+        if current_user.get("role") != "super_admin":
+            sk_update["role"] = "shopkeeper"
+
         try:
-            user_ref = db.collection("users").document(user_id)
-            user_ref.update({
-                "isShopkeeper": True,
-                "shopkeeperStatus": "approved",
-                "shopkeeperDashboardEnabled": True,
-                "activeShopId": active_shop_id,
-                "shop_id": active_shop_id,
-                "activeMode": "shopkeeper",
-                "currentMode": "shopkeeper",
-                "updatedAt": datetime.now(timezone.utc)
-            })
-            if current_user.get("role") != "super_admin":
-                user_ref.update({"role": "shopkeeper"})
+            db.collection("users").document(user_id).update(sk_update)
         except Exception as e:
             print(f"[WARN] Failed updating user doc in switch_mode: {e}")
 
-    db.collection("users").document(user_id).update({
+    mode_update = {
         "currentMode": new_mode,
         "activeMode": new_mode,
         "updatedAt": datetime.now(timezone.utc)
-    })
+    }
+
+    try:
+        db.collection("users").document(user_id).update(mode_update)
+    except Exception:
+        pass
+
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    if mongo_db is not None:
+        try:
+            mongo_db["users"].update_many(
+                {"$or": [{"_id": user_id}, {"id": user_id}, {"email": email_lower}]},
+                {"$set": {**mode_update, "updatedAt": datetime.now(timezone.utc).isoformat()}}
+            )
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("users").document(user_id).update(mode_update)
+        except Exception:
+            pass
 
     return {"success": True, "currentMode": new_mode, "activeMode": new_mode, "message": f"Switched to {new_mode} mode"}

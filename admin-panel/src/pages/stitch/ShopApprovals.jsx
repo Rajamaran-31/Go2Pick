@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
 import { useAppContext } from '../../context/AppContext';
-import AdminNavDrawer from '../../components/AdminNavDrawer';
 
 export default function ShopApprovals() {
   const navigate = useNavigate();
@@ -28,6 +27,7 @@ export default function ShopApprovals() {
         const shopName = r.shopName || r.shop_name || 'Unknown Shop';
         const statusStr = (r.status || 'pending').toLowerCase();
         return {
+          ...r,
           id: r.id,
           name: applicantName,
           shop: shopName,
@@ -35,7 +35,14 @@ export default function ShopApprovals() {
           status: statusStr === 'approved' ? 'Approved' : statusStr === 'rejected' ? 'Rejected' : 'Pending',
           initial: applicantName ? applicantName.substring(0, 2).toUpperCase() : 'NA',
           color: statusStr === 'approved' ? 'bg-success-green' : statusStr === 'rejected' ? 'bg-error-red' : 'bg-warning-amber',
-          submittedAt: r.submittedAt || r.createdAt
+          submittedAt: r.submittedAt || r.createdAt,
+          email: r.applicantEmail || r.email || '',
+          phone: r.phone || '',
+          address: r.address || '',
+          city: r.city || '',
+          pincode: r.pincode || '',
+          description: r.description || '',
+          businessProof: r.businessProof || r.businessProofUrl || null,
         };
       });
       setShops(mappedShops);
@@ -100,29 +107,8 @@ export default function ShopApprovals() {
 
   return (
     <>
-<header className="fixed top-0 left-0 right-0 h-16 md:h-20 bg-surface border-b border-border-gray flex items-center justify-between px-md lg:px-xl z-[100]">
-<div className="flex items-center gap-sm cursor-pointer" onClick={() => navigate('/admin')}>
-  <span className="material-symbols-outlined text-primary text-[26px]">admin_panel_settings</span>
-  <h1 className="font-headline-lg-mobile md:font-headline-lg font-bold text-primary">Go2Pick Approvals</h1>
-</div>
-
-<div className="flex items-center gap-2 md:gap-3">
-<button 
-  onClick={() => navigate('/')} 
-  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-trust-blue/10 text-trust-blue hover:bg-trust-blue hover:text-white text-xs font-bold transition-all border border-trust-blue/20 shadow-sm cursor-pointer"
-  title="Switch to Customer Storefront"
->
-  <span className="material-symbols-outlined text-[16px]">storefront</span>
-  <span>Customer Store</span>
-</button>
-<button 
-  onClick={() => navigate('/shopkeeper')} 
-  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-marketplace-orange/10 text-marketplace-orange hover:bg-marketplace-orange hover:text-white text-xs font-bold transition-all border border-marketplace-orange/20 shadow-sm cursor-pointer"
-  title="Switch to Shopkeeper Dashboard"
->
-  <span className="material-symbols-outlined text-[16px]">point_of_sale</span>
-  <span>Shopkeeper Portal</span>
-</button>
+<header className="fixed top-0 left-0 right-0 h-20 bg-surface border-b border-border-gray flex items-center justify-between px-md lg:px-xl z-[100]">
+<div className="flex items-center gap-md">
 <button className="p-xs rounded-full hover:bg-surface-container-high transition-colors duration-200 active:scale-95 transition-transform relative" onClick={() => navigate('/admin/notifications')}>
 <span className="material-symbols-outlined text-on-surface-variant dark:text-outline" data-icon="notifications">notifications</span>
 {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-error-red rounded-full"></span>}
@@ -130,8 +116,8 @@ export default function ShopApprovals() {
 <button className="p-xs rounded-full hover:bg-surface-container-high transition-colors duration-200 active:scale-95 cursor-pointer" onClick={() => setIsDrawerOpen(true)}>
 <span className="material-symbols-outlined text-on-surface-variant dark:text-outline">menu</span>
 </button>
-<div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm">
-  SA
+<div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container">
+<img alt="Admin Avatar" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCocArS-SRrIxPAjSVSUmqC8ZRcVsIlie8NZ3z1NCn4yqnWYZ68Vwt_FhCWZo9DBXc_SgmoK5LcbkPqNgFRqFJkJ7Vb2fRYKsHT9-xdNkNoXmQNC_N6BHyroszFWgbBzWzz5RwVxnplTxog1arCHoGt2TGDc3jD8oTUPySJ9YvOBRCM7tWBPhq_l2LVONyC4TPMRGyY4o7X6zBHybD99qrmOuJT6hbKD_hXZISyXHIXC1XC-Fm1vzehVEigQmoV9oJVOe-ggMnOMLQu"/>
 </div>
 </div>
 </header>
@@ -310,7 +296,22 @@ export default function ShopApprovals() {
 </div>
 </main>
 
-<AdminNavDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+{isDrawerOpen && (
+  <div className="fixed inset-0 z-[200] flex">
+    <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
+    <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
+      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
+      <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
+      <div className="flex flex-col gap-2">
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
+      </div>
+    </div>
+  </div>
+)}
 
     </>
   );

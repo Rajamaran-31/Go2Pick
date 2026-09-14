@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { adminAPI } from '../../services/api';
 
 export default function ShopReviewDetail() {
   const location = useLocation();
@@ -24,6 +25,7 @@ export default function ShopReviewDetail() {
 
   const [status, setStatus] = useState(shop.status === 'Pending' ? 'Pending Review' : shop.status);
   const [showPopup, setShowPopup] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const updateShopStatus = (newStatus) => {
     setStatus(newStatus);
@@ -32,15 +34,33 @@ export default function ShopReviewDetail() {
     localStorage.setItem('pendingShops', JSON.stringify(updated));
   };
 
-  const handleApprove = () => {
-    updateShopStatus('Approved');
-    setIsShopApproved(true);
-    setShowPopup(true);
+  const handleApprove = async () => {
+    try {
+      setIsProcessing(true);
+      await adminAPI.approveRequest(shop.id);
+      updateShopStatus('Approved');
+      setIsShopApproved(true);
+      setShowPopup(true);
+    } catch (err) {
+      alert("Failed to approve shop: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleReject = () => {
-    updateShopStatus('Rejected');
-    navigate('/admin/approvals');
+  const handleReject = async () => {
+    const reason = window.prompt("Enter rejection reason (optional):", "Application rejected by administrator.") || "Application rejected by administrator.";
+    try {
+      setIsProcessing(true);
+      await adminAPI.rejectRequest(shop.id, { reason });
+      updateShopStatus('Rejected');
+      alert(`Shop application for "${shop.shop || 'Merchant'}" has been rejected.`);
+      navigate('/admin/approvals');
+    } catch (err) {
+      alert("Failed to reject shop: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -242,13 +262,15 @@ export default function ShopReviewDetail() {
 <p className="text-on-surface-variant font-body-md text-body-md">Reviewing as <span className="font-bold text-trust-blue">Admin #402</span></p>
 </div>
 <div className="flex items-center gap-sm w-full sm:w-auto">
-<button onClick={() => navigate("/admin/approvals")} className="flex-1 py-sm border border-error text-error rounded-lg font-label-sm hover:bg-error/5 transition-colors">Reject</button>
-<button onClick={() => window.alert('Action successful')} className="flex-1 sm:flex-none px-xl py-md rounded-xl bg-surface-container-high border border-trust-blue/30 font-label-sm text-label-sm text-trust-blue hover:bg-trust-blue/10 transition-all active:scale-95">
-                    Request Info
-                </button>
-<button onClick={handleApprove} className="flex-1 sm:flex-none px-2xl py-md rounded-xl bg-trust-blue text-white font-label-sm text-label-sm shadow-lg shadow-trust-blue/20 hover:bg-primary transition-all active:scale-95 cursor-pointer">
-                    Approve Shop
-                </button>
+<button onClick={handleReject} disabled={isProcessing} className="flex-1 py-sm border border-error text-error rounded-lg font-label-sm hover:bg-error/5 transition-colors cursor-pointer disabled:opacity-50">
+    {isProcessing ? "Processing..." : "Reject"}
+</button>
+<button onClick={() => window.alert('Applicant Contact:\nEmail: ' + (shop.email || 'N/A') + '\nPhone: ' + (shop.phone || 'N/A'))} className="flex-1 sm:flex-none px-xl py-md rounded-xl bg-surface-container-high border border-trust-blue/30 font-label-sm text-label-sm text-trust-blue hover:bg-trust-blue/10 transition-all active:scale-95 cursor-pointer">
+    Request Info
+</button>
+<button onClick={handleApprove} disabled={isProcessing} className="flex-1 sm:flex-none px-2xl py-md rounded-xl bg-trust-blue text-white font-label-sm text-label-sm shadow-lg shadow-trust-blue/20 hover:bg-primary transition-all active:scale-95 cursor-pointer disabled:opacity-50">
+    {isProcessing ? "Approving..." : "Approve Shop"}
+</button>
 </div>
 </div>
 </div>

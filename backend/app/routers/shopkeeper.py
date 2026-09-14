@@ -329,6 +329,24 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
     except Exception as update_err:
         print(f"[WARN] Failed to update user doc in enable_dashboard: {update_err}")
 
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    if mongo_db is not None:
+        try:
+            mongo_db["users"].update_many(
+                {"$or": [{"_id": user_id}, {"id": user_id}, {"email": email}]},
+                {"$set": {**update_payload, "updatedAt": datetime.now(timezone.utc).isoformat()}}
+            )
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("users").document(user_id).update(update_payload)
+        except Exception:
+            pass
+
     return {
         "success": True,
         "message": "Shopkeeper dashboard enabled! Welcome to shopkeeper mode.",
@@ -349,12 +367,31 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
     shops = list(shops_ref)
 
     user_email = (current_user.get("email") or "").lower()
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
     if not shops and user_email:
         shops_ref = db.collection("shops").where("email", "==", user_email).stream()
         shops = list(shops_ref)
         if not shops:
             shops_ref = db.collection("shops").where("businessEmail", "==", user_email).stream()
             shops = list(shops_ref)
+
+    # Check MongoDB Atlas if shop was not found in primary stream
+    if not shops and mongo_db is not None:
+        try:
+            m_filter = {"$or": [
+                {"ownerId": user_id},
+                {"owner_id": user_id},
+                {"email": user_email},
+                {"businessEmail": user_email}
+            ]}
+            m_shop = mongo_db["shops"].find_one(m_filter)
+            if m_shop:
+                from app.database import MongoDocSnap
+                shops = [MongoDocSnap(m_shop, doc_id=str(m_shop.get("_id", m_shop.get("id", ""))))]
+        except Exception as me:
+            print(f"[WARN] Mongo shop lookup in get_my_shop: {me}")
 
     # Return the first active approved shop
     active_shops = [s for s in shops if s.to_dict().get("isActive") and s.to_dict().get("isApproved")]
@@ -688,6 +725,24 @@ async def update_order_status(
 
     order_ref.update(update)
 
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    if mongo_db is not None:
+        try:
+            mongo_db["orders"].update_many(
+                {"$or": [{"_id": order_id}, {"id": order_id}]},
+                {"$set": {**update, "updatedAt": datetime.now(timezone.utc).isoformat()}}
+            )
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("orders").document(order_id).update(update)
+        except Exception:
+            pass
+
     # Notify customer
     await notify_order_status(order["customerId"], new_status, order.get("shopName", ""))
 
@@ -731,9 +786,31 @@ async def verify_pickup_code(
     now = datetime.now(timezone.utc)
     order_ref.update({
         "orderStatus": "completed",
-        "paymentStatus": "completed",  # Optionally mark payment as completed (payment handled directly at shop)
+        "paymentStatus": "completed",
         "updatedAt": now
     })
+
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    if mongo_db is not None:
+        try:
+            mongo_db["orders"].update_many(
+                {"$or": [{"_id": order_id}, {"id": order_id}]},
+                {"$set": {"orderStatus": "completed", "paymentStatus": "completed", "updatedAt": now.isoformat()}}
+            )
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("orders").document(order_id).update({
+                "orderStatus": "completed",
+                "paymentStatus": "completed",
+                "updatedAt": now
+            })
+        except Exception:
+            pass
 
     # Notify customer
     await notify_order_status(order["customerId"], "completed", order.get("shopName", ""))

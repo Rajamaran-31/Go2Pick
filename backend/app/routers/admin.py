@@ -524,33 +524,54 @@ async def reject_application(
         raise HTTPException(status_code=404, detail="Application not found")
 
     user_id = str(app.get("userId") or app.get("applicantId") or "")
+    applicant_email = (app.get("email") or app.get("applicantEmail") or "").lower()
+
+    user_update_payload = {
+        "shopkeeperStatus": "rejected",
+        "rejectionReason": body.rejectionReason,
+        "updatedAt": now.isoformat(),
+    }
+
     if user_id:
         try:
-            db.collection("users").document(user_id).update({
-                "shopkeeperStatus": "rejected",
-                "rejectionReason": body.rejectionReason,
-                "updatedAt": now,
-            })
+            db.collection("users").document(user_id).update(user_update_payload)
         except Exception:
             pass
+        if mongo_db is not None:
+            try:
+                mongo_db["users"].update_many(
+                    {"$or": [{"_id": user_id}, {"id": user_id}]},
+                    {"$set": user_update_payload}
+                )
+            except Exception:
+                pass
+        if firestore_db is not None:
+            try:
+                firestore_db.collection("users").document(user_id).update(user_update_payload)
+            except Exception:
+                pass
 
-        # Notify user
+        # Notify user in-app
         try:
             await notify_shopkeeper_rejected(user_id, app.get("shopName", ""), body.rejectionReason)
         except Exception:
             pass
 
+    if applicant_email:
+        if mongo_db is not None:
+            try:
+                mongo_db["users"].update_many({"email": applicant_email}, {"$set": user_update_payload})
+            except Exception:
+                pass
+        try:
+            send_shop_rejected_email(applicant_email, app.get("shopName", ""), body.rejectionReason)
+        except Exception:
+            pass
+
     return {
         "success": True,
-        "message": "Application rejected.",
+        "message": "Application rejected and applicant notified.",
     }
-
-    user_snap = db.collection("users").document(app["userId"]).get()
-    if user_snap.exists:
-        user = user_snap.to_dict()
-        send_shop_rejected_email(user.get("email", ""), app.get("shopName", ""), body.rejectionReason)
-
-    return {"success": True, "message": "Application rejected and user notified"}
 
 
 # ─── GET /admin/shops ─────────────────────────────────────────────────────────
@@ -608,41 +629,94 @@ async def list_shops(
 @router.put("/shops/{shop_id}/block")
 async def block_shop(shop_id: str, current_user: dict = Depends(require_super_admin)):
     db = get_db()
-    shop_ref = db.collection("shops").document(shop_id)
-    if not shop_ref.get().exists:
-        raise HTTPException(status_code=404, detail="Shop not found")
+    now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
-    shop_ref.update({"isActive": False, "is_active": False, "updatedAt": datetime.now(timezone.utc)})
+    try:
+        db.collection("shops").document(shop_id).update({"isActive": False, "is_active": False, "updatedAt": now})
+    except Exception:
+        pass
+
+    if mongo_db is not None:
+        try:
+            mongo_db["shops"].update_many({"$or": [{"_id": shop_id}, {"id": shop_id}]}, {"$set": {"isActive": False, "is_active": False, "updatedAt": now.isoformat()}})
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("shops").document(shop_id).update({"isActive": False, "is_active": False, "updatedAt": now})
+        except Exception:
+            pass
+
     return {"success": True, "message": "Shop blocked"}
 
 
 @router.put("/shops/{shop_id}/unblock")
 async def unblock_shop(shop_id: str, current_user: dict = Depends(require_super_admin)):
     db = get_db()
-    shop_ref = db.collection("shops").document(shop_id)
-    if not shop_ref.get().exists:
-        raise HTTPException(status_code=404, detail="Shop not found")
+    now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
-    shop_ref.update({"isActive": True, "is_active": True, "updatedAt": datetime.now(timezone.utc)})
+    try:
+        db.collection("shops").document(shop_id).update({"isActive": True, "is_active": True, "updatedAt": now})
+    except Exception:
+        pass
+
+    if mongo_db is not None:
+        try:
+            mongo_db["shops"].update_many({"$or": [{"_id": shop_id}, {"id": shop_id}]}, {"$set": {"isActive": True, "is_active": True, "updatedAt": now.isoformat()}})
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("shops").document(shop_id).update({"isActive": True, "is_active": True, "updatedAt": now})
+        except Exception:
+            pass
+
     return {"success": True, "message": "Shop unblocked"}
 
 
 @router.put("/shops/{shop_id}/toggle")
 async def toggle_shop(shop_id: str, current_user: dict = Depends(require_super_admin)):
     db = get_db()
-    shop_ref = db.collection("shops").document(shop_id)
-    shop_snap = shop_ref.get()
-    if not shop_snap.exists:
-        raise HTTPException(status_code=404, detail="Shop not found")
+    now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
-    shop = shop_snap.to_dict()
-    new_active = not shop.get("isActive", True)
-    shop_ref.update({
-        "isActive": new_active,
-        "is_active": new_active,
-        "updatedAt": datetime.now(timezone.utc)
-    })
-    return {"success": True, "message": f"Shop {'activated' if new_active else 'deactivated'} successfully"}
+    shop_snap = db.collection("shops").document(shop_id).get()
+    current_active = True
+    if shop_snap.exists:
+        current_active = shop_snap.to_dict().get("isActive", True)
+    elif mongo_db is not None:
+        m_shop = mongo_db["shops"].find_one({"$or": [{"_id": shop_id}, {"id": shop_id}]})
+        if m_shop:
+            current_active = m_shop.get("isActive", True)
+
+    new_active = not current_active
+    update_data = {"isActive": new_active, "is_active": new_active, "updatedAt": now}
+
+    try:
+        db.collection("shops").document(shop_id).update(update_data)
+    except Exception:
+        pass
+
+    if mongo_db is not None:
+        try:
+            mongo_db["shops"].update_many({"$or": [{"_id": shop_id}, {"id": shop_id}]}, {"$set": {"isActive": new_active, "is_active": new_active, "updatedAt": now.isoformat()}})
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("shops").document(shop_id).update(update_data)
+        except Exception:
+            pass
+
+    return {"success": True, "message": f"Shop {'activated' if new_active else 'deactivated'} successfully", "isActive": new_active}
 
 
 # ─── GET /admin/users ─────────────────────────────────────────────────────────
@@ -707,27 +781,58 @@ async def list_users(
 @router.put("/users/{user_id}/block")
 async def block_user(user_id: str, current_user: dict = Depends(require_super_admin)):
     db = get_db()
-    user_ref = db.collection("users").document(user_id)
-    user_snap = user_ref.get()
-    if not user_snap.exists:
-        raise HTTPException(status_code=404, detail="User not found")
-    user = user_snap.to_dict()
-    if user.get("role") == "super_admin":
+    now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    user_snap = db.collection("users").document(user_id).get()
+    if user_snap.exists and user_snap.to_dict().get("role") == "super_admin":
         raise HTTPException(status_code=400, detail="Cannot block super admin")
 
-    user_ref.update({"isBlocked": True, "updatedAt": datetime.now(timezone.utc)})
+    try:
+        db.collection("users").document(user_id).update({"isBlocked": True, "updatedAt": now})
+    except Exception:
+        pass
+
+    if mongo_db is not None:
+        try:
+            mongo_db["users"].update_many({"$or": [{"_id": user_id}, {"id": user_id}]}, {"$set": {"isBlocked": True, "updatedAt": now.isoformat()}})
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("users").document(user_id).update({"isBlocked": True, "updatedAt": now})
+        except Exception:
+            pass
+
     return {"success": True, "message": "User blocked"}
 
 
 @router.put("/users/{user_id}/unblock")
 async def unblock_user(user_id: str, current_user: dict = Depends(require_super_admin)):
     db = get_db()
-    user_ref = db.collection("users").document(user_id)
-    user_snap = user_ref.get()
-    if not user_snap.exists:
-        raise HTTPException(status_code=404, detail="User not found")
+    now = datetime.now(timezone.utc)
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
 
-    user_ref.update({"isBlocked": False, "updatedAt": datetime.now(timezone.utc)})
+    try:
+        db.collection("users").document(user_id).update({"isBlocked": False, "updatedAt": now})
+    except Exception:
+        pass
+
+    if mongo_db is not None:
+        try:
+            mongo_db["users"].update_many({"$or": [{"_id": user_id}, {"id": user_id}]}, {"$set": {"isBlocked": False, "updatedAt": now.isoformat()}})
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("users").document(user_id).update({"isBlocked": False, "updatedAt": now})
+        except Exception:
+            pass
+
     return {"success": True, "message": "User unblocked"}
 
 
@@ -953,7 +1058,15 @@ async def list_all_orders_admin(
     all_orders = list(orders_ref)
 
     if status:
-        all_orders = [o for o in all_orders if o.to_dict().get("orderStatus") == status]
+        stat_lower = status.lower()
+        def status_match(doc):
+            curr_s = (doc.to_dict().get("orderStatus") or "").lower()
+            if stat_lower in ["pending", "placed"]:
+                return curr_s in ["pending", "placed"]
+            if stat_lower in ["ready", "ready_for_pickup"]:
+                return curr_s in ["ready", "ready_for_pickup"]
+            return curr_s == stat_lower
+        all_orders = [o for o in all_orders if status_match(o)]
 
     def get_created_at(doc):
         val = doc.to_dict().get("createdAt")
@@ -970,7 +1083,6 @@ async def list_all_orders_admin(
         o = doc.to_dict()
         items = o.get("items", [])
         
-        # Parse pickup date and time from pickupTime or defaults
         pickup_time_str = o.get("pickupTime") or ""
         pickup_date = ""
         pickup_time = ""
@@ -981,17 +1093,32 @@ async def list_all_orders_admin(
                 pickup_time = " ".join(parts[1:])
             else:
                 pickup_date = pickup_time_str
-        
+
+        raw_status = o.get("orderStatus", "placed")
+        created_val = o.get("createdAt")
+        created_str = created_val.isoformat() if isinstance(created_val, datetime) else str(created_val or "")
+
         result.append({
             "id": doc.id,
+            "orderId": doc.id,
             "customer_name": o.get("customerName", "Customer"),
+            "customerName": o.get("customerName", "Customer"),
+            "customerPhone": o.get("customerPhone", ""),
             "shop_name": o.get("shopName", "Shop"),
+            "shopName": o.get("shopName", "Shop"),
+            "shopId": o.get("shopId", ""),
             "items_count": sum(item.get("quantity", 0) for item in items),
-            "total": o.get("totalAmount", 0.0),
+            "items": items,
+            "total": float(o.get("totalAmount", 0.0)),
+            "totalAmount": float(o.get("totalAmount", 0.0)),
             "pickup_date": pickup_date,
             "pickup_time": pickup_time,
-            "status": o.get("orderStatus", "placed"),
-            "created_at": o.get("createdAt").isoformat() if isinstance(o.get("createdAt"), datetime) else str(o.get("createdAt")),
+            "pickupTime": o.get("pickupTime"),
+            "pickupCode": o.get("pickupCode", ""),
+            "status": raw_status,
+            "orderStatus": raw_status,
+            "created_at": created_str,
+            "createdAt": created_str,
         })
 
     return {"success": True, "total": total, "orders": result}

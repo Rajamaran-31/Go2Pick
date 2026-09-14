@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
 import { useAppContext } from '../../context/AppContext';
-import AdminNavDrawer from '../../components/AdminNavDrawer';
 
 export default function GlobalDashboard() {
   const navigate = useNavigate();
@@ -65,23 +64,7 @@ export default function GlobalDashboard() {
 <span className="material-symbols-outlined text-primary dark:text-inverse-primary" data-icon="admin_panel_settings">admin_panel_settings</span>
 <h1 className="font-headline-lg text-headline-lg font-bold text-primary dark:text-inverse-primary">Marketplace Admin</h1>
 </div>
-<div className="flex items-center gap-2 md:gap-3">
-<button 
-  onClick={() => navigate('/')} 
-  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-trust-blue/10 text-trust-blue hover:bg-trust-blue hover:text-white text-xs font-bold transition-all border border-trust-blue/20 shadow-sm cursor-pointer"
-  title="Switch to Customer Storefront"
->
-  <span className="material-symbols-outlined text-[16px]">storefront</span>
-  <span>Customer Store</span>
-</button>
-<button 
-  onClick={() => navigate('/shopkeeper')} 
-  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-marketplace-orange/10 text-marketplace-orange hover:bg-marketplace-orange hover:text-white text-xs font-bold transition-all border border-marketplace-orange/20 shadow-sm cursor-pointer"
-  title="Switch to Shopkeeper Dashboard"
->
-  <span className="material-symbols-outlined text-[16px]">point_of_sale</span>
-  <span>Shopkeeper Portal</span>
-</button>
+<div className="flex items-center gap-md">
 <button className="p-xs rounded-full hover:bg-surface-container-high transition-colors duration-200 active:scale-95 transition-transform relative">
 <span className="material-symbols-outlined cursor-pointer text-on-surface-variant hover:text-primary dark:text-outline" data-icon="notifications" onClick={() => navigate('/admin/notifications')}>notifications</span>
 {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-error-red rounded-full"></span>}
@@ -222,39 +205,29 @@ export default function GlobalDashboard() {
 <div className="space-y-lg">
 
 <div className="bg-surface-container-lowest p-lg rounded-xl shadow-sm border border-border-gray">
-<h4 className="font-title-md text-title-md mb-md">Quick Navigation & Cross-Portal Access</h4>
+<h4 className="font-title-md text-title-md mb-md">Quick Navigation</h4>
 <div className="grid grid-cols-2 gap-sm">
-<button onClick={() => navigate('/')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-trust-blue/30 bg-trust-blue/5 hover:bg-trust-blue hover:text-white transition-colors group cursor-pointer">
-<span className="material-symbols-outlined text-trust-blue group-hover:text-white mb-xs" data-icon="storefront">storefront</span>
-<span className="font-body-md text-body-md font-semibold text-center">Customer Store</span>
-<span className="text-[11px] opacity-75">Browse & Orders</span>
-</button>
-<button onClick={() => navigate('/shopkeeper')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-marketplace-orange/30 bg-marketplace-orange/5 hover:bg-marketplace-orange hover:text-white transition-colors group cursor-pointer">
-<span className="material-symbols-outlined text-marketplace-orange group-hover:text-white mb-xs" data-icon="point_of_sale">point_of_sale</span>
-<span className="font-body-md text-body-md font-semibold text-center">Shopkeeper Portal</span>
-<span className="text-[11px] opacity-75">Manage Inventory</span>
-</button>
-<button onClick={() => navigate('/admin/approvals')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group cursor-pointer">
+<button onClick={() => navigate('/admin/approvals')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group">
 <span className="material-symbols-outlined text-primary mb-xs" data-icon="how_to_reg">how_to_reg</span>
 <span className="font-body-md text-body-md font-semibold text-center">Shop Approvals</span>
 </button>
-<button onClick={() => navigate('/admin/shops')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group cursor-pointer">
+<button onClick={() => navigate('/admin/shops')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group">
 <span className="material-symbols-outlined text-marketplace-orange mb-xs" data-icon="storefront">storefront</span>
 <span className="font-body-md text-body-md font-semibold text-center">Shop Management</span>
 </button>
-<button onClick={() => navigate('/admin/users')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group cursor-pointer">
+<button onClick={() => navigate('/admin/users')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group">
 <span className="material-symbols-outlined text-tertiary mb-xs" data-icon="group">group</span>
 <span className="font-body-md text-body-md font-semibold text-center">User Management</span>
 </button>
-<button onClick={() => navigate('/admin/settings')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group cursor-pointer">
+<button onClick={() => navigate('/admin/settings')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group">
 <span className="material-symbols-outlined text-trust-blue mb-xs" data-icon="settings">settings</span>
 <span className="font-body-md text-body-md font-semibold text-center">Platform Settings</span>
 </button>
-<button onClick={() => navigate('/admin/support')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group cursor-pointer">
+<button onClick={() => navigate('/admin/support')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group">
 <span className="material-symbols-outlined text-success-green mb-xs" data-icon="support_agent">support_agent</span>
 <span className="font-body-md text-body-md font-semibold text-center">Support</span>
 </button>
-<button onClick={() => navigate('/admin/reviews')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group cursor-pointer">
+<button onClick={() => navigate('/admin/reviews')} className="w-full flex flex-col items-center justify-center p-md rounded-lg border border-border-gray hover:bg-surface-container-low transition-colors group">
 <span className="material-symbols-outlined text-warning-amber mb-xs" data-icon="reviews">reviews</span>
 <span className="font-body-md text-body-md font-semibold text-center">Reviews</span>
 </button>
@@ -341,7 +314,22 @@ export default function GlobalDashboard() {
 </section>
 </main>
 
-<AdminNavDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+{isDrawerOpen && (
+  <div className="fixed inset-0 z-[200] flex">
+    <div className="absolute inset-0 bg-black/50" onClick={() => setIsDrawerOpen(false)} />
+    <div className="relative w-64 bg-surface dark:bg-surface-dim h-full shadow-lg flex flex-col p-4 animate-slide-in-left">
+      <button className="self-end material-symbols-outlined mb-4" onClick={() => setIsDrawerOpen(false)}>close</button>
+      <h2 className="text-title-md font-bold mb-4">Navigation Menu</h2>
+      <div className="flex flex-col gap-2">
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">dashboard</span> Dashboard</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/approvals'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">rule</span> Approvals</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/users'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">group</span> Users</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/shops'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">storefront</span> Shops</button>
+         <button onClick={() => { setIsDrawerOpen(false); navigate('/admin/settings'); }} className="text-left p-2 hover:bg-surface-container-low rounded-lg flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">settings</span> Settings</button>
+      </div>
+    </div>
+  </div>
+)}
 
     </>
   );
