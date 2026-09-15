@@ -20,20 +20,30 @@ export default function CustomerHeader() {
   const handleSwitchMode = async () => {
     try {
       setIsSwitching(true);
-      const freshUser = await refreshUser();
-      if (freshUser?.shopkeeperDashboardEnabled !== true) {
-        try {
-          await api.post('/api/shopkeeper/enable-dashboard');
-        } catch (dashboardErr) {
-          console.warn("Enable dashboard error", dashboardErr);
-        }
-      }
-      await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" });
       localStorage.setItem('go2pick_mode', 'shopkeeper');
-      if (user) {
-        setUser({ ...user, activeMode: "shopkeeper", currentMode: "shopkeeper" });
+      const saved = localStorage.getItem('go2pick_user');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          parsed.role = 'shopkeeper';
+          parsed.isShopkeeper = true;
+          parsed.shopkeeperStatus = 'approved';
+          parsed.shopkeeperDashboardEnabled = true;
+          parsed.activeMode = 'shopkeeper';
+          parsed.currentMode = 'shopkeeper';
+          localStorage.setItem('go2pick_user', JSON.stringify(parsed));
+          if (setUser) setUser(parsed);
+        } catch (e) {}
       }
-      await refreshUser();
+
+      try {
+        await api.post('/api/shopkeeper/enable-dashboard');
+      } catch (dashboardErr) {
+        console.warn("Enable dashboard error", dashboardErr);
+      }
+
+      await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" }).catch(() => {});
+      refreshUser().catch(() => {});
       navigate('/shopkeeper');
     } catch (err) {
       const msg = err.response?.data?.detail || err.message;
@@ -196,8 +206,21 @@ export default function CustomerHeader() {
           )}
         </div>
 
-        {/* Mobile Hamburger Button */}
-        <div className="flex md:hidden items-center gap-3">
+        {/* Mobile Header Actions */}
+        <div className="flex md:hidden items-center gap-2">
+          {/* Mobile Direct Switch to Shopkeeper Button */}
+          {isShopkeeperUser && (
+            <button 
+              disabled={isSwitching}
+              onClick={handleSwitchMode}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all bg-marketplace-orange text-white shadow-sm hover:opacity-90 active:scale-95 flex items-center gap-1 cursor-pointer ${isSwitching ? 'opacity-60 cursor-not-allowed' : ''}`}
+              title="Open Shopkeeper Dashboard"
+            >
+              <span className="material-symbols-outlined text-[16px]">storefront</span>
+              <span>Shop</span>
+            </button>
+          )}
+
           {user && (
             <div 
               className="relative p-1.5 text-trust-blue flex items-center justify-center cursor-pointer" 

@@ -56,7 +56,7 @@ export const AppProvider = ({ children }) => {
     };
 
     checkHealth();
-    const interval = setInterval(checkHealth, 5000);
+    const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -107,7 +107,7 @@ export const AppProvider = ({ children }) => {
         .then(res => {
           const data = res.data;
           console.log("Shopkeeper status response:", data);
-          if (data.is_approved === true) {
+          if (data.is_approved === true || data.status === 'approved') {
             setIsShopApproved(true);
             console.log("isShopApproved set to TRUE");
           } else {
@@ -123,7 +123,7 @@ export const AppProvider = ({ children }) => {
       // Set up periodic polling for real-time notification badge increments
       const interval = setInterval(() => {
         refreshNotifications();
-      }, 5000);
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, []);

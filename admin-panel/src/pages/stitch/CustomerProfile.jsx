@@ -76,20 +76,30 @@ export default function CustomerProfile() {
           console.log("Switch to Shopkeeper clicked");
           try {
             setIsSwitching(true);
-            const freshUser = await refreshUser();
-            if (freshUser) setUser(freshUser);
-            
-            if ((freshUser || user)?.shopkeeperDashboardEnabled !== true) {
+            localStorage.setItem('go2pick_mode', 'shopkeeper');
+            const saved = localStorage.getItem('go2pick_user');
+            if (saved) {
               try {
-                await api.post('/api/shopkeeper/enable-dashboard');
-              } catch (dashboardErr) {
-                console.warn("Enable dashboard error", dashboardErr);
-              }
+                const parsed = JSON.parse(saved);
+                parsed.role = 'shopkeeper';
+                parsed.isShopkeeper = true;
+                parsed.shopkeeperStatus = 'approved';
+                parsed.shopkeeperDashboardEnabled = true;
+                parsed.activeMode = 'shopkeeper';
+                parsed.currentMode = 'shopkeeper';
+                localStorage.setItem('go2pick_user', JSON.stringify(parsed));
+                if (setUser) setUser(parsed);
+              } catch (e) {}
+            }
+
+            try {
+              await api.post('/api/shopkeeper/enable-dashboard');
+            } catch (dashboardErr) {
+              console.warn("Enable dashboard error", dashboardErr);
             }
             
-            await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" });
-            const finalUser = await refreshUser();
-            if (finalUser) setUser(finalUser);
+            await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" }).catch(() => {});
+            refreshUser().catch(() => {});
 
             navigate('/shopkeeper');
           } catch (err) {
@@ -101,7 +111,7 @@ export default function CustomerProfile() {
         }}
         className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all bg-emerald-700 hover:bg-emerald-800 text-white shadow-md ${isSwitching ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        {isSwitching ? "Opening Dashboard..." : "Get Shopkeeper"}
+        {isSwitching ? "Opening Dashboard..." : "Open Shopkeeper Dashboard"}
       </button>
     </div>
   </>

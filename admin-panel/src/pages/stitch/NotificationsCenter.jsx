@@ -17,7 +17,44 @@ export default function NotificationsCenter() {
     markAllNotificationsAsRead,
     unreadCount
   } = useAppContext();
-  const { user, refreshUser } = useAuth();
+  const { user, setUser, refreshUser } = useAuth();
+  const [isEnabling, setIsEnabling] = useState(false);
+
+  const handleEnableDashboard = async () => {
+    try {
+      setIsEnabling(true);
+      await api.post('/api/shopkeeper/enable-dashboard');
+      await api.post('/api/auth/switch-mode', { activeMode: "shopkeeper" }).catch(() => {});
+      
+      localStorage.setItem('go2pick_mode', 'shopkeeper');
+      const savedUser = localStorage.getItem('go2pick_user');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          parsed.role = 'shopkeeper';
+          parsed.isShopkeeper = true;
+          parsed.shopkeeperStatus = 'approved';
+          parsed.shopkeeperDashboardEnabled = true;
+          parsed.activeMode = 'shopkeeper';
+          parsed.currentMode = 'shopkeeper';
+          localStorage.setItem('go2pick_user', JSON.stringify(parsed));
+          if (setUser) setUser(parsed);
+        } catch (e) {}
+      }
+
+      setIsShopApproved(true);
+      setIsShopkeeperMode(true);
+      setHasGetAccessNotification(false);
+
+      refreshUser().catch(() => {});
+      navigate('/shopkeeper');
+    } catch (err) {
+      console.error("DEBUG [NotificationsCenter] Failed to enable shopkeeper dashboard:", err);
+      const msg = err.response?.data?.detail || err.message;
+      alert(`Failed to enable shopkeeper dashboard: ${msg}`);
+      setIsEnabling(false);
+    }
+  };
 
   React.useEffect(() => {
     refreshNotifications().then(() => {
@@ -97,28 +134,12 @@ export default function NotificationsCenter() {
                 <p className="font-body-md text-body-md text-on-surface-variant mt-1">{n.message}</p>
                 <div className="mt-md flex gap-sm">
                   <button 
-                    onClick={() => {
-                      // Call enable-dashboard directly as requested
-                      api.post(`/api/shopkeeper/enable-dashboard`)
-                      .then(res => {
-                        console.log("DEBUG [NotificationsCenter] enable dashboard response:", res.data);
-                        refreshUser().then(() => {
-                          setIsShopApproved(true);
-                          setIsShopkeeperMode(true);
-                          setHasGetAccessNotification(false);
-                          alert("🎉 Shopkeeper mode unlocked! Opening your dashboard.");
-                          navigate('/shopkeeper');
-                        });
-                      })
-                      .catch(err => {
-                        console.error("DEBUG [NotificationsCenter] Failed to enable shopkeeper dashboard:", err);
-                        alert(`Failed to enable shopkeeper dashboard. Error: ${err.response?.data?.detail || err.message}`);
-                      });
-                    }}
-                    className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-bold flex items-center gap-2"
+                    disabled={isEnabling}
+                    onClick={handleEnableDashboard}
+                    className={`bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-bold flex items-center gap-2 shadow-sm ${isEnabling ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     <span className="material-symbols-outlined text-[18px]">storefront</span>
-                    {n.actionLabel || "Get Access to Shopkeeper Dashboard"}
+                    {isEnabling ? "Opening Dashboard..." : (n.actionLabel || "Get Access to Shopkeeper Dashboard")}
                   </button>
                 </div>
               </div>

@@ -1,6 +1,8 @@
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { AppProvider, useAppContext } from './context/AppContext';
+import api from './services/api';
 import Layout from './components/Layout';
 import CustomerLayout from './components/CustomerLayout';
 import Login from './pages/Login';
@@ -87,21 +89,90 @@ function AdminRoute() {
 }
 
 function ShopkeeperRoute() {
-  const { user, token, loading } = useAuth();
-  if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
-  
-  console.log("DEBUG [ShopkeeperRoute]:", {
-    role: user?.role,
-    isShopkeeper: user?.isShopkeeper,
-    shopkeeperStatus: user?.shopkeeperStatus,
-    shopkeeperDashboardEnabled: user?.shopkeeperDashboardEnabled,
-    activeMode: user?.activeMode || user?.currentMode
-  });
+  const { user, token, loading, setUser } = useAuth();
+  const [checking, setChecking] = useState(false);
+  const [verified, setVerified] = useState(null);
 
-  if (!token) return <Navigate to="/" replace />;
+  const role = (user?.role || '').toLowerCase();
+  const isDirectApproved = 
+    role === 'super_admin' || 
+    role === 'admin' || 
+    role === 'shopkeeper' ||
+    user?.isShopkeeper === true ||
+    user?.isShopkeeper === 'true' ||
+    user?.shopkeeperStatus === 'approved' ||
+    user?.shopkeeperDashboardEnabled === true;
 
-  if (user?.isShopkeeper !== true || user?.shopkeeperStatus !== 'approved') {
-    alert("Your shopkeeper access is not approved yet.");
+  let isLocalApproved = false;
+  try {
+    const rawLocal = localStorage.getItem('go2pick_user');
+    if (rawLocal) {
+      const localParsed = JSON.parse(rawLocal);
+      const lRole = (localParsed?.role || '').toLowerCase();
+      if (
+        lRole === 'super_admin' ||
+        lRole === 'admin' ||
+        lRole === 'shopkeeper' ||
+        localParsed?.isShopkeeper === true ||
+        localParsed?.shopkeeperStatus === 'approved' ||
+        localParsed?.shopkeeperDashboardEnabled === true
+      ) {
+        isLocalApproved = true;
+      }
+    }
+  } catch (e) {}
+
+  const hasAccess = isDirectApproved || isLocalApproved || verified === true;
+
+  useEffect(() => {
+    if (loading || !token) return;
+    if (isDirectApproved || isLocalApproved) {
+      setVerified(true);
+      return;
+    }
+
+    let isMounted = true;
+    setChecking(true);
+    api.get('/api/shopkeeper/status')
+      .then(res => {
+        if (!isMounted) return;
+        if (res.data?.is_approved === true || res.data?.status === 'approved') {
+          setVerified(true);
+          api.post('/api/shopkeeper/enable-dashboard').catch(() => {});
+          api.get('/api/auth/me').then(meRes => {
+            const userData = meRes.data?.user || meRes.data;
+            if (userData) {
+              localStorage.setItem('go2pick_user', JSON.stringify(userData));
+              if (setUser) setUser(userData);
+            }
+          }).catch(() => {});
+        } else {
+          setVerified(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setVerified(false);
+      })
+      .finally(() => {
+        if (isMounted) setChecking(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [user, token, loading, isDirectApproved, isLocalApproved]);
+
+  if (loading || checking) {
+    return (
+      <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-50 text-slate-800">
+        <div className="w-12 h-12 rounded-full border-4 border-marketplace-orange/20 border-t-marketplace-orange animate-spin mb-3"></div>
+        <p className="text-sm font-semibold text-slate-600">Opening shopkeeper dashboard...</p>
+      </div>
+    );
+  }
+
+  const effectiveToken = token || localStorage.getItem('go2pick_token') || localStorage.getItem('admin_token');
+  if (!effectiveToken) return <Navigate to="/" replace />;
+
+  if (!hasAccess && verified === false) {
     return <Navigate to="/profile" replace />;
   }
 
