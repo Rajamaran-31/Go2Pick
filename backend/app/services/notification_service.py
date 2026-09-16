@@ -155,7 +155,6 @@ async def notify_shopkeeper_approved(user_id, shop_name: str, email: Optional[st
         type="SHOP_APPROVED",
         action_label="Get Access to Shopkeeper Dashboard",
         action_type="ENABLE_SHOPKEEPER_DASHBOARD",
-        recipient_role="customer",
     )
 
 
@@ -166,7 +165,6 @@ async def notify_shopkeeper_rejected(user_id, shop_name: str, reason: str, email
         title="Shop Application Rejected",
         message=f"Your application for '{shop_name}' was rejected. Reason: {reason}",
         type="shop_rejected",
-        recipient_role="customer",
     )
 
 

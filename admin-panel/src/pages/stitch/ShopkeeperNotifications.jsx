@@ -8,7 +8,6 @@ export default function ShopkeeperNotifications() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('all');
   const { 
     notifications, 
     setIsShopApproved, 
@@ -26,29 +25,7 @@ export default function ShopkeeperNotifications() {
     });
   }, []);
 
-  // Filter notifications specifically for the shopkeeper dashboard:
-  // Exclude customer-specific shop approval / get access notifications (which belong solely in Customer notification center)
-  const visibleNotifications = notifications.filter(n => {
-    if (n.type === "SHOPKEEPER_APPLICATION" && user?.role !== "super_admin") return false;
-
-    const isShopApproval = n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD" || 
-                           n.type === "SHOP_APPROVED" || 
-                           n.type === "shop_approved" || 
-                           Boolean(n.show_get_access_button) ||
-                           n.recipientRole === "customer";
-    if (isShopApproval) return false;
-
-    if (selectedFilter === 'orders') {
-      return n.type === 'new_order' || n.type === 'order_update' || n.type === 'order_cancelled' || n.actionType === 'VIEW_ORDER';
-    }
-    if (selectedFilter === 'support') {
-      return n.type === 'SUPPORT_REPLY' || n.type === 'support';
-    }
-    if (selectedFilter === 'alerts') {
-      return n.type !== 'new_order' && n.type !== 'SUPPORT_REPLY';
-    }
-    return true;
-  });
+  const visibleNotifications = notifications.filter(n => !(n.type === "SHOPKEEPER_APPLICATION" && user?.role !== "super_admin"));
 
   return (
     <>
@@ -76,16 +53,16 @@ export default function ShopkeeperNotifications() {
 <div className="mb-lg flex justify-between items-end">
 <div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface">Shop Notifications</h2>
-<p className="font-body-md text-body-md text-on-surface-variant">Stay updated with your incoming orders, support replies, and store alerts</p>
+<p className="font-body-md text-body-md text-on-surface-variant">Stay updated with your orders and local offers</p>
 </div>
 <button onClick={markAllNotificationsAsRead} className="font-label-sm text-label-sm text-primary hover:underline transition-all">Mark all as read</button>
 </div>
 {/* Filters */}
 <div className="flex gap-sm mb-lg overflow-x-auto pb-2 no-scrollbar">
-<button onClick={() => setSelectedFilter('all')} className={`px-md py-xs rounded-full font-label-sm text-label-sm shadow-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>All</button>
-<button onClick={() => setSelectedFilter('orders')} className={`px-md py-xs rounded-full font-label-sm text-label-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'orders' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>Orders</button>
-<button onClick={() => setSelectedFilter('support')} className={`px-md py-xs rounded-full font-label-sm text-label-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'support' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>Support</button>
-<button onClick={() => setSelectedFilter('alerts')} className={`px-md py-xs rounded-full font-label-sm text-label-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'alerts' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>Alerts</button>
+<button className="px-md py-xs rounded-full bg-primary text-on-primary font-label-sm text-label-sm shadow-sm active:scale-95 transition-all">All</button>
+<button className="px-md py-xs rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-high transition-all active:scale-95">Orders</button>
+<button className="px-md py-xs rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-high transition-all active:scale-95">Promos</button>
+<button className="px-md py-xs rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-high transition-all active:scale-95">New Shops</button>
 </div>
 {/* Notifications List */}
 <div className="space-y-sm">
@@ -95,30 +72,54 @@ export default function ShopkeeperNotifications() {
         <span className="material-symbols-outlined text-[48px] text-outline">notifications_off</span>
       </div>
       <h3 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">All caught up!</h3>
-      <p className="font-body-md text-body-md text-on-surface-variant mt-sm max-w-xs">You don't have any store notifications at the moment.</p>
+      <p className="font-body-md text-body-md text-on-surface-variant mt-sm max-w-xs">You don't have any new notifications at the moment.</p>
     </div>
   ) : (
     visibleNotifications.map((n) => {
-      if (n.type === "new_order" || n.actionType === "VIEW_ORDER") {
+      const isShopApprovalNotif = n.actionType === "ENABLE_SHOPKEEPER_DASHBOARD" || 
+                                  n.type === "SHOP_APPROVED" || 
+                                  n.type === "shop_approved" || 
+                                  Boolean(n.show_get_access_button);
+      if (isShopApprovalNotif) {
         return (
-          <div key={n.id} className={`group bg-surface-container-low p-md rounded-xl shadow-sm border-l-4 border-trust-blue hover:bg-surface-container-high transition-all ${n.isRead ? 'opacity-70' : ''}`}>
+          <div key={n.id} className={`group bg-surface-container-low p-md rounded-xl shadow-sm border-l-4 border-success-green hover:bg-surface-container-high transition-all ${n.isRead ? 'opacity-70' : ''}`}>
             <div className="flex gap-md">
-              <div className="w-12 h-12 rounded-full bg-trust-blue/10 flex items-center justify-center flex-shrink-0 text-trust-blue">
-                <span className="material-symbols-outlined">receipt_long</span>
+              <div className="w-12 h-12 rounded-full bg-success-green/10 flex items-center justify-center flex-shrink-0 text-success-green">
+                <span className="material-symbols-outlined" style={{'fontVariationSettings': "'FILL' 1"}}>storefront</span>
               </div>
               <div className="flex-1">
                 <div className="flex justify-between items-start">
                   <h3 className="font-title-md text-body-lg font-bold text-on-surface">{n.title}</h3>
-                  {!n.isRead && <span className="font-label-sm text-[10px] text-trust-blue font-bold">New</span>}
+                  {!n.isRead && <span className="font-label-sm text-[10px] text-success-green font-bold">New</span>}
                 </div>
                 <p className="font-body-md text-body-md text-on-surface-variant mt-1">{n.message}</p>
                 <div className="mt-md flex gap-sm">
                   <button 
-                    onClick={() => navigate('/shopkeeper/orders')}
-                    className="bg-trust-blue text-white font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all font-bold flex items-center gap-2 cursor-pointer"
+                    onClick={() => {
+                      const userToken = localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token') || localStorage.getItem('token');
+                      fetch(`${API_BASE}/api/notifications/${n.id}/read`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${userToken}` }
+                      }).then(() => {
+                        return fetch(`${API_BASE}/api/shopkeeper/enable-dashboard`, {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${userToken}` }
+                        });
+                      }).then(res => res.json())
+                      .then((data) => {
+                        refreshUser().then(() => {
+                          setIsShopApproved(true);
+                          setIsShopkeeperMode(true);
+                          setHasGetAccessNotification(false);
+                          alert("🎉 Shopkeeper mode unlocked! Opening your dashboard.");
+                          navigate('/shopkeeper');
+                        });
+                      });
+                    }}
+                    className="bg-success-green text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-bold flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                    View Orders
+                    <span className="material-symbols-outlined text-[18px]">storefront</span>
+                    {n.actionLabel || "Get Access to Shopkeeper Dashboard"}
                   </button>
                 </div>
               </div>
@@ -145,7 +146,7 @@ export default function ShopkeeperNotifications() {
                     onClick={() => {
                       navigate('/shopkeeper/support');
                     }}
-                    className="bg-marketplace-orange text-white font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer font-bold"
+                    className="bg-marketplace-orange text-on-primary font-label-sm text-label-sm px-md py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all"
                   >
                     View Reply
                   </button>
