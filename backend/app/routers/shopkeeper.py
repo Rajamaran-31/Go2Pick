@@ -333,6 +333,9 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
         except Exception:
             pass
 
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
     # Verify that the user has an approved application or status
     is_approved = (
         (user_doc and (user_doc.get("shopkeeperStatus") == "approved" or user_doc.get("isShopkeeper") is True or user_doc.get("role") == "shopkeeper")) or
@@ -344,18 +347,92 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
 
     active_shop_id = (user_doc.get("activeShopId") if user_doc else None) or current_user.get("activeShopId") or (user_doc.get("shop_id") if user_doc else None) or current_user.get("shop_id")
 
-    if not is_approved:
-        # Check shopkeeper_applications collection
-        apps_ref = list(db.collection("shopkeeper_applications").where("userId", "==", user_id).stream())
-        if not apps_ref and email:
-            apps_ref = list(db.collection("shopkeeper_applications").where("email", "==", email).stream())
-        for a in apps_ref:
-            a_data = a.to_dict()
-            if a_data.get("status") == "approved":
+    # If not directly verified, check shops collection across DB layers
+    if not is_approved or not active_shop_id:
+        try:
+            for s in db.collection("shops").where("ownerId", "==", user_id).stream():
                 is_approved = True
-                if not active_shop_id and a_data.get("shopId"):
-                    active_shop_id = a_data.get("shopId")
+                if not active_shop_id:
+                    active_shop_id = s.id
                 break
+            if not is_approved and email:
+                for s in db.collection("shops").where("email", "==", email).stream():
+                    is_approved = True
+                    if not active_shop_id:
+                        active_shop_id = s.id
+                    break
+        except Exception:
+            pass
+
+        if not is_approved and firestore_db is not None:
+            try:
+                for s in firestore_db.collection("shops").where("ownerId", "==", user_id).stream():
+                    is_approved = True
+                    if not active_shop_id:
+                        active_shop_id = s.id
+                    break
+                if not is_approved and email:
+                    for s in firestore_db.collection("shops").where("email", "==", email).stream():
+                        is_approved = True
+                        if not active_shop_id:
+                            active_shop_id = s.id
+                        break
+            except Exception:
+                pass
+
+        if not is_approved and mongo_db is not None:
+            try:
+                m_filter = {"$or": [{"ownerId": user_id}, {"owner_id": user_id}, {"email": email}, {"businessEmail": email}]}
+                found_s = mongo_db["shops"].find_one(m_filter)
+                if found_s:
+                    is_approved = True
+                    if not active_shop_id:
+                        active_shop_id = str(found_s.get("id") or found_s.get("_id"))
+            except Exception:
+                pass
+
+    # If still not verified, check shopkeeper_applications collection
+    if not is_approved:
+        try:
+            apps_ref = list(db.collection("shopkeeper_applications").where("userId", "==", user_id).stream())
+            if not apps_ref and email:
+                apps_ref = list(db.collection("shopkeeper_applications").where("email", "==", email).stream())
+            for a in apps_ref:
+                a_data = a.to_dict()
+                if a_data.get("status") == "approved":
+                    is_approved = True
+                    if not active_shop_id and a_data.get("shopId"):
+                        active_shop_id = a_data.get("shopId")
+                    break
+        except Exception:
+            pass
+
+        if not is_approved and firestore_db is not None:
+            try:
+                f_apps = list(firestore_db.collection("shopkeeper_applications").where("userId", "==", user_id).stream())
+                if not f_apps and email:
+                    f_apps = list(firestore_db.collection("shopkeeper_applications").where("email", "==", email).stream())
+                for a in f_apps:
+                    a_data = a.to_dict()
+                    if a_data.get("status") == "approved":
+                        is_approved = True
+                        if not active_shop_id and a_data.get("shopId"):
+                            active_shop_id = a_data.get("shopId")
+                        break
+            except Exception:
+                pass
+
+        if not is_approved and mongo_db is not None:
+            try:
+                m_apps = list(mongo_db["shopkeeper_applications"].find({"$or": [{"userId": user_id}, {"applicantId": user_id}, {"email": email}, {"applicantEmail": email}]}))
+                for a_data in m_apps:
+                    if a_data.get("status") == "approved":
+                        is_approved = True
+                        if not active_shop_id and a_data.get("shopId"):
+                            active_shop_id = str(a_data.get("shopId"))
+                        break
+            except Exception:
+                pass
 
     if not is_approved:
         raise HTTPException(
@@ -381,9 +458,6 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
     except Exception as update_err:
         print(f"[WARN] Failed to update user doc in enable_dashboard: {update_err}")
 
-    firestore_db = getattr(db, "firestore_db", None)
-    mongo_db = getattr(db, "mongo_db", None)
-
     if mongo_db is not None:
         try:
             u_query = build_id_filter(user_id)
@@ -407,6 +481,7 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
         "message": "Shopkeeper dashboard enabled! Welcome to shopkeeper mode.",
         "currentMode": "shopkeeper",
         "activeMode": "shopkeeper",
+        "activeShopId": active_shop_id
     }
 
 
@@ -416,24 +491,75 @@ async def enable_dashboard(current_user: dict = Depends(get_current_user)):
 async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
     db = get_db()
     user_id = str(current_user["_id"])
-    print(f"DEBUG [Backend] currentUser.id: {user_id}")
-
-    shops_ref = db.collection("shops").where("ownerId", "==", user_id).stream()
-    shops = list(shops_ref)
-
     user_email = (current_user.get("email") or "").lower()
+    active_shop_id = current_user.get("activeShopId") or current_user.get("shop_id")
     firestore_db = getattr(db, "firestore_db", None)
     mongo_db = getattr(db, "mongo_db", None)
 
-    if not shops and user_email:
-        shops_ref = db.collection("shops").where("email", "==", user_email).stream()
-        shops = list(shops_ref)
-        if not shops:
-            shops_ref = db.collection("shops").where("businessEmail", "==", user_email).stream()
-            shops = list(shops_ref)
+    shop = None
 
-    # Check MongoDB Atlas if shop was not found in primary stream
-    if not shops and mongo_db is not None:
+    # 1. Try lookup by activeShopId
+    if active_shop_id:
+        try:
+            s_snap = db.collection("shops").document(str(active_shop_id)).get()
+            if s_snap.exists:
+                shop = s_snap.to_dict()
+                shop["id"] = s_snap.id
+        except Exception:
+            pass
+
+        if not shop and firestore_db is not None:
+            try:
+                fs_snap = firestore_db.collection("shops").document(str(active_shop_id)).get()
+                if fs_snap.exists:
+                    shop = fs_snap.to_dict()
+                    shop["id"] = fs_snap.id
+            except Exception:
+                pass
+
+        if not shop and mongo_db is not None:
+            try:
+                m_shop = mongo_db["shops"].find_one(build_id_filter(active_shop_id))
+                if m_shop:
+                    shop = dict(m_shop)
+                    shop["id"] = str(m_shop.get("id") or m_shop.get("_id"))
+            except Exception:
+                pass
+
+    # 2. Try lookup by ownerId / email in primary, firestore, and mongo
+    if not shop:
+        try:
+            for s in db.collection("shops").where("ownerId", "==", user_id).stream():
+                shop = s.to_dict()
+                shop["id"] = s.id
+                break
+        except Exception:
+            pass
+
+    if not shop and user_email:
+        try:
+            for s in db.collection("shops").where("email", "==", user_email).stream():
+                shop = s.to_dict()
+                shop["id"] = s.id
+                break
+        except Exception:
+            pass
+
+    if not shop and firestore_db is not None:
+        try:
+            for s in firestore_db.collection("shops").where("ownerId", "==", user_id).stream():
+                shop = s.to_dict()
+                shop["id"] = s.id
+                break
+            if not shop and user_email:
+                for s in firestore_db.collection("shops").where("email", "==", user_email).stream():
+                    shop = s.to_dict()
+                    shop["id"] = s.id
+                    break
+        except Exception:
+            pass
+
+    if not shop and mongo_db is not None:
         try:
             m_filter = {"$or": [
                 {"ownerId": user_id},
@@ -443,27 +569,20 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
             ]}
             m_shop = mongo_db["shops"].find_one(m_filter)
             if m_shop:
-                from app.database import MongoDocSnap
-                shops = [MongoDocSnap(m_shop, doc_id=str(m_shop.get("_id", m_shop.get("id", ""))))]
-        except Exception as me:
-            print(f"[WARN] Mongo shop lookup in get_my_shop: {me}")
-
-    # Return the first active approved shop
-    active_shops = [s for s in shops if s.to_dict().get("isActive") and s.to_dict().get("isApproved")]
-    shop_snap = active_shops[0] if active_shops else (shops[0] if shops else None)
-
-    shop = shop_snap.to_dict() if shop_snap else {}
-    if shop_snap:
-        shop["id"] = shop_snap.id
-        print(f"DEBUG [Backend] shop document found: {shop}")
+                shop = dict(m_shop)
+                shop["id"] = str(m_shop.get("id") or m_shop.get("_id"))
+        except Exception:
+            pass
+    if shop:
+        print(f"DEBUG [Backend] shop document found: {shop.get('id')}, name: {shop.get('name')}")
     else:
         print(f"DEBUG [Backend] shop document found: None")
 
-    name = shop.get("name") or shop.get("shopName")
-    category = shop.get("category")
+    name = shop.get("name") or shop.get("shopName") if shop else None
+    category = shop.get("category") if shop else None
 
     # If shop doesn't exist or fields are missing
-    if not shop_snap or not name or name == "Shop name not set" or not category or category == "Category not set":
+    if not shop or not name or name == "Shop name not set" or not category or category == "Category not set":
         print("DEBUG [Backend] Shop missing or fields missing. Looking for approved application...")
         
         apps_ref = db.collection("shopkeeper_applications")\
