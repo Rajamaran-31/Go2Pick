@@ -51,6 +51,7 @@ async def list_notifications(
     unread_only: bool = Query(default=False),
     limit: int = Query(default=50, le=200),
     skip: int = Query(default=0, ge=0),
+    mode: Optional[str] = Query(default=None),
     current_user: dict = Depends(get_current_user),
 ):
     db = get_db()
@@ -133,6 +134,24 @@ async def list_notifications(
         # Filter super_admin broadcasts for non-super-admins
         if role != "super_admin" and n.get("recipientRole") == "super_admin":
             continue
+
+        ntype = n.get("type", "")
+        act_type = n.get("actionType", "")
+        is_shop_approval = (
+            ntype in ["SHOP_APPROVED", "shop_approved"] or
+            act_type == "ENABLE_SHOPKEEPER_DASHBOARD" or
+            bool(n.get("show_get_access_button")) or
+            n.get("recipientRole") == "customer"
+        )
+
+        # In shopkeeper mode, never show customer onboarding / shop approval notifications
+        if mode == "shopkeeper" and is_shop_approval:
+            continue
+
+        # In customer mode, never show merchant incoming order alerts
+        if mode == "customer" and (ntype in ["new_order", "merchant_alert"] or n.get("recipientRole") == "shopkeeper"):
+            continue
+
         if nid and nid not in seen_ids:
             seen_ids.add(nid)
             unique_notifications.append(n)

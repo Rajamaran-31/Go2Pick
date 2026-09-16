@@ -18,6 +18,7 @@ export default function NotificationsCenter() {
     unreadCount
   } = useAppContext();
   const { user, setUser, refreshUser } = useAuth();
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [isEnabling, setIsEnabling] = useState(false);
 
   const handleEnableDashboard = async () => {
@@ -62,7 +63,22 @@ export default function NotificationsCenter() {
     });
   }, []);
 
-  const visibleNotifications = notifications.filter(n => !(n.type === "SHOPKEEPER_APPLICATION" && user?.role !== "super_admin"));
+  const visibleNotifications = notifications.filter(n => {
+    if (n.type === "SHOPKEEPER_APPLICATION" && user?.role !== "super_admin") return false;
+    // Merchant incoming orders belong in the shopkeeper dashboard, not the customer notification center
+    if (n.type === "new_order") return false;
+
+    if (selectedFilter === 'orders') {
+      return n.type === 'order_update' || n.type?.includes('order');
+    }
+    if (selectedFilter === 'promos') {
+      return n.type === 'promo' || n.type === 'offer';
+    }
+    if (selectedFilter === 'new_shops') {
+      return n.type === 'new_shop';
+    }
+    return true;
+  });
 
   return (
     <>
@@ -90,16 +106,16 @@ export default function NotificationsCenter() {
 <div className="mb-lg flex justify-between items-end">
 <div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface">Notifications</h2>
-<p className="font-body-md text-body-md text-on-surface-variant">Stay updated with your orders and local offers</p>
+<p className="font-body-md text-body-md text-on-surface-variant">Stay updated with your orders, approvals, and local offers</p>
 </div>
 <button onClick={markAllNotificationsAsRead} className="font-label-sm text-label-sm text-primary hover:underline transition-all">Mark all as read</button>
 </div>
 {/* Filters */}
 <div className="flex gap-sm mb-lg overflow-x-auto pb-2 no-scrollbar">
-<button className="px-md py-xs rounded-full bg-primary text-on-primary font-label-sm text-label-sm shadow-sm active:scale-95 transition-all">All</button>
-<button className="px-md py-xs rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-high transition-all active:scale-95">Orders</button>
-<button className="px-md py-xs rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-high transition-all active:scale-95">Promos</button>
-<button className="px-md py-xs rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm hover:bg-surface-container-high transition-all active:scale-95">New Shops</button>
+<button onClick={() => setSelectedFilter('all')} className={`px-md py-xs rounded-full font-label-sm text-label-sm shadow-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>All</button>
+<button onClick={() => setSelectedFilter('orders')} className={`px-md py-xs rounded-full font-label-sm text-label-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'orders' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>Orders</button>
+<button onClick={() => setSelectedFilter('promos')} className={`px-md py-xs rounded-full font-label-sm text-label-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'promos' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>Promos</button>
+<button onClick={() => setSelectedFilter('new_shops')} className={`px-md py-xs rounded-full font-label-sm text-label-sm active:scale-95 transition-all cursor-pointer ${selectedFilter === 'new_shops' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'}`}>New Shops</button>
 </div>
 {/* Notifications List */}
 <div className="space-y-sm">
