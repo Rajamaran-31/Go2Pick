@@ -75,25 +75,31 @@ export default function ShopApprovals() {
   }, []);
 
   const handleApprove = async (id, shopName) => {
+    // Optimistic UI update (0ms immediate feedback, no popup)
+    setShops(prev => prev.map(s => s.id === id ? { ...s, status: 'Approved' } : s));
+
     try {
-      const response = await adminAPI.approveRequest(id);
-      console.log("DEBUG [Admin] approve response:", response.data);
-      alert(`🎉 Application for "${shopName || 'Merchant'}" approved successfully! Shop created and user notified.`);
-      setStatusTab('approved');
-      fetchRequests();
+      await adminAPI.approveRequest(id);
     } catch (err) {
-      alert("Failed to approve: " + (err.response?.data?.detail || err.message));
+      console.error("Failed to approve application:", err);
+      // Revert on error
+      setShops(prev => prev.map(s => s.id === id ? { ...s, status: 'Pending' } : s));
     }
   };
 
   const handleReject = async (id, shopName) => {
+    // Optimistic UI update (0ms immediate feedback, no popup)
+    setShops(prev => prev.map(s => s.id === id ? { ...s, status: 'Rejected' } : s));
+
     try {
-      await adminAPI.rejectRequest(id, { reason: "Application rejected by administrator." });
-      alert(`Shop application for "${shopName || 'Merchant'}" rejected.`);
-      setStatusTab('rejected');
-      fetchRequests();
+      await adminAPI.rejectRequest(id, {
+        rejectionReason: "Application rejected by administrator.",
+        reason: "Application rejected by administrator."
+      });
     } catch (err) {
-      alert("Failed to reject: " + (err.response?.data?.detail || err.message));
+      console.error("Failed to reject application:", err);
+      // Revert on error
+      setShops(prev => prev.map(s => s.id === id ? { ...s, status: 'Pending' } : s));
     }
   };
 

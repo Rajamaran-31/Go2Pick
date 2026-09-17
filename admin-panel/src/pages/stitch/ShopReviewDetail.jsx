@@ -107,22 +107,21 @@ export default function ShopReviewDetail() {
       setIsShopApproved(true);
       setShowPopup(true);
     } catch (err) {
-      alert("Failed to approve shop: " + (err.response?.data?.detail || err.message));
+      console.error("Failed to approve shop:", err);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleReject = async () => {
-    const reason = window.prompt("Enter rejection reason (optional):", "Application rejected by administrator.") || "Application rejected by administrator.";
+    const reason = "Application rejected by administrator.";
     try {
       setIsProcessing(true);
-      await adminAPI.rejectRequest(shop.id, { reason });
+      await adminAPI.rejectRequest(shop.id, { rejectionReason: reason, reason });
       updateShopStatus('Rejected');
-      alert(`Shop application for "${shop.shop || 'Merchant'}" has been rejected.`);
       navigate('/admin/approvals');
     } catch (err) {
-      alert("Failed to reject shop: " + (err.response?.data?.detail || err.message));
+      console.error("Failed to reject shop:", err);
     } finally {
       setIsProcessing(false);
     }

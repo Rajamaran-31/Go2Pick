@@ -580,6 +580,7 @@ async def reject_application(
 ):
     db = get_db()
     now = datetime.now(timezone.utc)
+    rejection_reason = body.get_reason()
     firestore_db = getattr(db, "firestore_db", None)
     mongo_db = getattr(db, "mongo_db", None)
 
@@ -594,7 +595,7 @@ async def reject_application(
                 app = f_snap.to_dict()
                 f_ref.update({
                     "status": "rejected",
-                    "rejectionReason": body.rejectionReason,
+                    "rejectionReason": rejection_reason,
                     "reviewedAt": now,
                     "reviewedBy": current_user.get("_id", "admin"),
                 })
@@ -611,11 +612,11 @@ async def reject_application(
                 app = m_doc
             mongo_db["shopkeeper_applications"].update_many(
                 build_id_filter(application_id),
-                {"$set": {"status": "rejected", "rejectionReason": body.rejectionReason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+                {"$set": {"status": "rejected", "rejectionReason": rejection_reason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
             )
             mongo_db["shopkeeper_requests"].update_many(
                 build_id_filter(application_id),
-                {"$set": {"status": "rejected", "rejectionReason": body.rejectionReason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+                {"$set": {"status": "rejected", "rejectionReason": rejection_reason, "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
             )
         except Exception:
             pass
@@ -629,7 +630,7 @@ async def reject_application(
                 app = app_snap.to_dict()
             app_ref.update({
                 "status": "rejected",
-                "rejectionReason": body.rejectionReason,
+                "rejectionReason": rejection_reason,
                 "reviewedAt": now,
                 "reviewedBy": current_user.get("_id", "admin"),
             })
@@ -644,7 +645,7 @@ async def reject_application(
 
     user_update_payload = {
         "shopkeeperStatus": "rejected",
-        "rejectionReason": body.rejectionReason,
+        "rejectionReason": rejection_reason,
         "updatedAt": now.isoformat(),
     }
 

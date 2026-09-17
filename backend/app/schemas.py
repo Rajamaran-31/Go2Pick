@@ -296,7 +296,11 @@ class NotificationResponse(BaseModel):
 # ─── Admin ────────────────────────────────────────────────────────────────────
 
 class RejectApplicationRequest(BaseModel):
-    rejectionReason: str = Field(..., min_length=5)
+    rejectionReason: Optional[str] = "Application rejected by administrator."
+    reason: Optional[str] = None
+
+    def get_reason(self) -> str:
+        return self.rejectionReason or self.reason or "Application rejected by administrator."
 
 
 class ShopSettingsUpdateRequest(BaseModel):
