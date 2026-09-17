@@ -6,29 +6,44 @@ from app.database import get_db
 
 db = get_db()
 mongo = getattr(db, 'mongo_db', None)
-fs = getattr(db, 'firestore_db', None) or db
+if mongo is None:
+    print("Error: MongoDB connection is not available.")
+    sys.exit(1)
 
-# 1. Sync shop
-f_shop_snap = fs.collection('shops').document('qmtojRtm1FYqBNZNnoyH').get()
-if f_shop_snap.exists:
-    shop_data = f_shop_snap.to_dict()
-    shop_data['ownerId'] = 'OKarhauKaQeafzzdEEhL73lQNR33'
-    shop_data['owner_id'] = 'OKarhauKaQeafzzdEEhL73lQNR33'
-    shop_data['email'] = 'rajamaran32@gmail.com'
-    shop_data['isApproved'] = True
-    shop_data['isActive'] = True
-    shop_data['status'] = 'active'
-    
-    if mongo is not None:
-        mongo['shops'].replace_one(
-            {'_id': 'qmtojRtm1FYqBNZNnoyH'},
-            {**shop_data, '_id': 'qmtojRtm1FYqBNZNnoyH', 'id': 'qmtojRtm1FYqBNZNnoyH'},
-            upsert=True
-        )
-        print("Shop qmtojRtm1FYqBNZNnoyH synced to MongoDB!")
+# 1. Ensure shop qmtojRtm1FYqBNZNnoyH exists in MongoDB
+shop_data = {
+    '_id': 'qmtojRtm1FYqBNZNnoyH',
+    'id': 'qmtojRtm1FYqBNZNnoyH',
+    'name': 'grany grocery shop',
+    'shopName': 'grany grocery shop',
+    'ownerId': 'OKarhauKaQeafzzdEEhL73lQNR33',
+    'owner_id': 'OKarhauKaQeafzzdEEhL73lQNR33',
+    'email': 'rajamaran32@gmail.com',
+    'businessEmail': 'rajamaran32@gmail.com',
+    'category': 'grocery',
+    'description': 'Fresh groceries and daily essentials pre-order store',
+    'address': 'lakshmanapudhur, vettapattu',
+    'city': 'nattrampalli',
+    'pincode': '635852',
+    'phone': '+918778783962',
+    'businessPhone': '+918778783962',
+    'imageUrl': '/static/uploads/general/1700e21446d24f9cba818d3bcfc7fdb5.png',
+    'coverImageUrl': '/static/uploads/general/a4b7ad6e0dc44e8b8c1d6ef80f5cf6d5.png',
+    'isApproved': True,
+    'isActive': True,
+    'status': 'active',
+    'updatedAt': datetime.now(timezone.utc).isoformat()
+}
 
-# 2. Update user
-payload = {
+mongo['shops'].replace_one(
+    {'_id': 'qmtojRtm1FYqBNZNnoyH'},
+    shop_data,
+    upsert=True
+)
+print("Shop qmtojRtm1FYqBNZNnoyH confirmed in MongoDB!")
+
+# 2. Update user in MongoDB
+user_payload = {
     'role': 'shopkeeper',
     'isShopkeeper': True,
     'shopkeeperStatus': 'approved',
@@ -37,26 +52,41 @@ payload = {
     'shop_id': 'qmtojRtm1FYqBNZNnoyH',
     'activeMode': 'shopkeeper',
     'currentMode': 'shopkeeper',
+    'email': 'rajamaran32@gmail.com',
     'updatedAt': datetime.now(timezone.utc).isoformat()
 }
 
-# Update Firestore
-fs.collection('users').document('OKarhauKaQeafzzdEEhL73lQNR33').update(payload)
-print("Firestore user updated!")
+# Delete any legacy document for this email if its _id is not the Firebase UID
+mongo['users'].delete_many({
+    'email': 'rajamaran32@gmail.com',
+    '_id': {'$ne': 'OKarhauKaQeafzzdEEhL73lQNR33'}
+})
 
-# Update MongoDB
-if mongo is not None:
-    mongo['users'].update_many(
-        {'$or': [{'id': 'OKarhauKaQeafzzdEEhL73lQNR33'}, {'_id': 'OKarhauKaQeafzzdEEhL73lQNR33'}, {'email': 'rajamaran32@gmail.com'}]},
-        {'$set': payload}
-    )
-    print("MongoDB users updated!")
+user_doc = {
+    '_id': 'OKarhauKaQeafzzdEEhL73lQNR33',
+    'id': 'OKarhauKaQeafzzdEEhL73lQNR33',
+    'fullName': 'rajamaran32',
+    'name': 'rajamaran32',
+    'phone': '+918778783962',
+    **user_payload
+}
 
-# Also ensure any other application for rajamaran32 is marked approved
-fs.collection('shopkeeper_applications').document('ioTIrrBvNuXADUEqZbZa').update({'status': 'approved', 'shopId': 'qmtojRtm1FYqBNZNnoyH'})
-if mongo is not None:
-    mongo['shopkeeper_applications'].update_many(
-        {'email': 'rajamaran32@gmail.com'},
-        {'$set': {'status': 'approved', 'shopId': 'qmtojRtm1FYqBNZNnoyH'}}
-    )
-print("Applications synced and approved!")
+mongo['users'].replace_one(
+    {'_id': 'OKarhauKaQeafzzdEEhL73lQNR33'},
+    user_doc,
+    upsert=True
+)
+print("User OKarhauKaQeafzzdEEhL73lQNR33 confirmed as approved shopkeeper in MongoDB!")
+
+# 3. Ensure approved application exists in MongoDB
+mongo['shopkeeper_applications'].update_many(
+    {'$or': [{'email': 'rajamaran32@gmail.com'}, {'applicantEmail': 'rajamaran32@gmail.com'}, {'userId': 'OKarhauKaQeafzzdEEhL73lQNR33'}, {'applicantId': 'OKarhauKaQeafzzdEEhL73lQNR33'}]},
+    {'$set': {
+        'status': 'approved',
+        'shopId': 'qmtojRtm1FYqBNZNnoyH',
+        'reviewedAt': datetime.now(timezone.utc).isoformat(),
+        'updatedAt': datetime.now(timezone.utc).isoformat()
+    }}
+)
+print("Shopkeeper applications approved in MongoDB!")
+print("\nMerchant setup in MongoDB Atlas is 100% complete!")

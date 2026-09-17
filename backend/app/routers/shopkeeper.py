@@ -619,7 +619,7 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
                 "imageUrl": app_doc.get("shopImageUrl", "")
             }
             
-            if not shop_snap:
+            if not shop:
                 now = datetime.now(timezone.utc)
                 new_shop_ref = db.collection("shops").document()
                 updates.update({
@@ -647,12 +647,13 @@ async def get_my_shop(current_user: dict = Depends(require_shopkeeper)):
                     "shop_id": new_shop_ref.id
                 })
             else:
-                db.collection("shops").document(shop_snap.id).update(updates)
+                target_shop_id = shop.get("id") or shop.get("_id")
+                db.collection("shops").document(target_shop_id).update(updates)
                 shop.update(updates)
                 print(f"DEBUG [Backend] repaired shop document: {shop}")
         else:
             print("DEBUG [Backend] No approved application found.")
-            if not shop_snap:
+            if not shop:
                 return {"success": True, "shop": None}
 
     return_fields = {

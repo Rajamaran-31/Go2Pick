@@ -130,11 +130,48 @@ class MongoQueryWrapper:
     def where(self, field: str, op: str, val: Any) -> "MongoQueryWrapper":
         q = dict(self.query)
         if op == '==':
-            if field in ('_id', 'id') and isinstance(val, str) and len(val) == 24 and all(c in '0123456789abcdefABCDEF' for c in val):
+            val_oid = None
+            if isinstance(val, str) and len(val) == 24 and all(c in '0123456789abcdefABCDEF' for c in val):
                 try:
-                    q['$or'] = [{field: val}, {field: ObjectId(val)}]
+                    val_oid = ObjectId(val)
                 except Exception:
-                    q[field] = val
+                    val_oid = None
+
+            if field in ('_id', 'id'):
+                ors = [{"_id": val}, {"id": val}]
+                if val_oid:
+                    ors.extend([{"_id": val_oid}, {"id": val_oid}])
+                if "$and" not in q:
+                    q["$and"] = []
+                q["$and"].append({"$or": ors})
+            elif field in ('shopId', 'shop_id'):
+                ors = [{"shopId": val}, {"shop_id": val}]
+                if val_oid:
+                    ors.extend([{"shopId": val_oid}, {"shop_id": val_oid}])
+                if "$and" not in q:
+                    q["$and"] = []
+                q["$and"].append({"$or": ors})
+            elif field in ('ownerId', 'owner_id'):
+                ors = [{"ownerId": val}, {"owner_id": val}]
+                if val_oid:
+                    ors.extend([{"ownerId": val_oid}, {"owner_id": val_oid}])
+                if "$and" not in q:
+                    q["$and"] = []
+                q["$and"].append({"$or": ors})
+            elif field in ('userId', 'user_id'):
+                ors = [{"userId": val}, {"user_id": val}, {"applicantId": val}]
+                if val_oid:
+                    ors.extend([{"userId": val_oid}, {"user_id": val_oid}])
+                if "$and" not in q:
+                    q["$and"] = []
+                q["$and"].append({"$or": ors})
+            elif field in ('customerId', 'customer_id'):
+                ors = [{"customerId": val}, {"customer_id": val}]
+                if val_oid:
+                    ors.extend([{"customerId": val_oid}, {"customer_id": val_oid}])
+                if "$and" not in q:
+                    q["$and"] = []
+                q["$and"].append({"$or": ors})
             else:
                 q[field] = val
         return MongoQueryWrapper(self.coll, q, self.limit_val, self.fs_coll)
@@ -196,42 +233,48 @@ class Database:
     @classmethod
     def connect(cls):
         settings = get_settings()
-
-        # 1. Initialize Firebase Admin SDK & Cloud Firestore (100% Firebase Architecture)
-        fs_db = None
+        
+        # 1. Connect MongoDB Atlas
+        mongo_client = None
+        mongo_db = None
+        mongo_url = settings.MONGODB_URL or "mongodb://rajamaran32:maran2007@ac-xvjluyj-shard-00-00.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-01.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-02.hobeyx3.mongodb.net:27017/?ssl=true&authSource=admin&retryWrites=true&w=majority"
+        db_name = settings.DATABASE_NAME or "go2pick"
         try:
-            import json
-            creds_config = (settings.FIREBASE_CREDENTIALS or settings.FIREBASE_CREDENTIALS_PATH or "").strip()
-            if not firebase_admin._apps:
-                if (creds_config.startswith('"') and creds_config.endswith('"')) or (creds_config.startswith("'") and creds_config.endswith("'")):
-                    creds_config = creds_config[1:-1].strip()
-                if creds_config.startswith('{'):
-                    cred_dict = json.loads(creds_config)
-                    if "private_key" in cred_dict and isinstance(cred_dict["private_key"], str):
-                        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
-                    cred = credentials.Certificate(cred_dict)
-                    firebase_admin.initialize_app(cred, {
-                        'storageBucket': getattr(settings, 'FIREBASE_STORAGE_BUCKET', 'go2pick-345bf.firebasestorage.app')
-                    })
-                else:
-                    resolved_path = resolve_firebase_credentials(creds_config)
-                    if Path(resolved_path).exists():
-                        cred = credentials.Certificate(resolved_path)
-                        firebase_admin.initialize_app(cred, {
-                            'storageBucket': getattr(settings, 'FIREBASE_STORAGE_BUCKET', 'go2pick-345bf.firebasestorage.app')
-                        })
-            if firebase_admin._apps:
-                app_inst = firebase_admin.get_app()
-                fs_db = firestore.client(app=app_inst)
-                print("Successfully initialized Firebase Cloud Firestore SDK as primary database.")
-        except Exception as fe:
-            print(f"[WARN] Firebase Admin SDK init failed: {fe}")
+            ca_file = None
+            try:
+                import certifi
+                ca_file = certifi.where()
+            except Exception:
+                pass
 
-        # Set pure Firestore as the single source of truth database
-        cls.db = fs_db
-        if cls.db is not None:
-            cls.db.firestore_db = fs_db
-            cls.db.mongo_db = None
+            client_kwargs: Dict[str, Any] = {
+                "serverSelectionTimeoutMS": 5000,
+                "connectTimeoutMS": 5000,
+                "socketTimeoutMS": 5000,
+                "tlsAllowInvalidCertificates": True,
+            }
+            if ca_file:
+                client_kwargs["tlsCAFile"] = ca_file
+
+            mongo_client = pymongo.MongoClient(mongo_url, **client_kwargs)
+            mongo_client.admin.command('ping')
+            mongo_db = mongo_client[db_name]
+            print(f"Successfully connected to MongoDB Atlas database: {db_name}")
+        except Exception as me:
+            print(f"[WARN] MongoDB Atlas connection error: {me}")
+            try:
+                mongo_client = pymongo.MongoClient(mongo_url, tlsAllowInvalidCertificates=True, serverSelectionTimeoutMS=4000)
+                mongo_client.admin.command('ping')
+                mongo_db = mongo_client[db_name]
+                print(f"Connected to MongoDB Atlas with fallback TLS: {db_name}")
+            except Exception as me2:
+                print(f"[WARN] MongoDB Atlas fallback failed: {me2}")
+                mongo_db = None
+
+        if mongo_db is not None:
+            cls.db = MongoDatabaseWrapper(mongo_db, None)
+        else:
+            cls.db = None
 
     @classmethod
     def close(cls):

@@ -119,25 +119,31 @@ async def get_current_user(
                     headers={"WWW-Authenticate": "Bearer"},
                 )
 
-    # Fetch user profile from Firebase Cloud Firestore
+    # Fetch user profile from MongoDB Atlas
     user = None
-    try:
-        user_ref = db.collection("users").document(uid)
-        user_snap = user_ref.get()
-        if user_snap.exists:
-            user = user_snap.to_dict()
-            user["_id"] = uid
-            user["id"] = uid
-    except Exception as fe:
-        print(f"[WARN] get_current_user Firestore fetch failed: {fe}")
+    mongo_db = getattr(db, "mongo_db", None)
 
-    if not user and email_val:
+    if mongo_db is not None:
         try:
-            docs = list(db.collection("users").where("email", "==", email_val).limit(1).stream())
-            if docs:
-                user = docs[0].to_dict()
-                user["_id"] = docs[0].id
-                user["id"] = docs[0].id
+            query = [{"_id": uid}, {"id": uid}]
+            if email_val:
+                query.append({"email": email_val})
+            m_user = mongo_db["users"].find_one({"$or": query})
+            if m_user:
+                m_user["_id"] = str(m_user.get("_id", uid))
+                m_user["id"] = m_user["_id"]
+                user = m_user
+        except Exception as me:
+            print(f"[WARN] get_current_user Mongo fetch error: {me}")
+
+    if not user:
+        try:
+            user_ref = db.collection("users").document(uid)
+            user_snap = user_ref.get()
+            if user_snap.exists:
+                user = user_snap.to_dict()
+                user["_id"] = uid
+                user["id"] = uid
         except Exception:
             pass
 

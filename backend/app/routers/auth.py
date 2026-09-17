@@ -612,7 +612,25 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
 
     try:
         db.collection("users").document(user_id).update(mode_update)
-    except Exception as me_err:
-        print(f"[WARN] Failed updating user mode in Firestore: {me_err}")
+    except Exception:
+        pass
+
+    firestore_db = getattr(db, "firestore_db", None)
+    mongo_db = getattr(db, "mongo_db", None)
+
+    if mongo_db is not None:
+        try:
+            mongo_db["users"].update_many(
+                {"$or": [{"_id": user_id}, {"id": user_id}, {"email": email_lower}]},
+                {"$set": {**mode_update, "updatedAt": datetime.now(timezone.utc).isoformat()}}
+            )
+        except Exception:
+            pass
+
+    if firestore_db is not None:
+        try:
+            firestore_db.collection("users").document(user_id).update(mode_update)
+        except Exception:
+            pass
 
     return {"success": True, "currentMode": new_mode, "activeMode": new_mode, "message": f"Switched to {new_mode} mode"}

@@ -30,20 +30,21 @@ def sanitize_doc(doc):
 
 def main():
     settings = get_settings()
-    from app.database import get_db
-    print("Connecting to databases via get_db()...", flush=True)
-    db = get_db()
-    mongo_db = getattr(db, 'mongo_db', None)
-    fs_db = getattr(db, 'firestore_db', None)
     
-    if mongo_db is None:
-        print("[ERROR] MongoDB is not connected! Aborting migration.", flush=True)
-        return
-    if fs_db is None:
-        print("[ERROR] Firestore is not connected! Aborting migration.", flush=True)
-        return
-
-    print("Both MongoDB Atlas and Firestore are connected successfully!", flush=True)
+    # 1. Connect Mongo
+    mongo_url = settings.MONGODB_URL
+    db_name = settings.DATABASE_NAME or "go2pick"
+    print(f"Connecting to MongoDB Atlas: {db_name}...")
+    client = pymongo.MongoClient(mongo_url, tlsAllowInvalidCertificates=True, serverSelectionTimeoutMS=5000)
+    mongo_db = client[db_name]
+    
+    # 2. Connect Firestore
+    print("Connecting to Firebase Cloud Firestore...")
+    if not firebase_admin._apps:
+        creds_path = resolve_firebase_credentials(settings.FIREBASE_CREDENTIALS or settings.FIREBASE_CREDENTIALS_PATH)
+        cred = credentials.Certificate(creds_path)
+        firebase_admin.initialize_app(cred, {'storageBucket': settings.FIREBASE_STORAGE_BUCKET})
+    fs_db = firestore.client()
     
     collections_to_migrate = ['shops', 'categories', 'products', 'orders', 'reviews', 'shopkeeper_applications', 'notifications', 'users']
     
@@ -62,11 +63,26 @@ def main():
             clean['id'] = doc_id
             clean['_id'] = doc_id
             
+            # Check if exists in Firestore
             doc_ref = fs_db.collection(coll_name).document(doc_id)
-            doc_ref.set(clean, merge=True)
-            migrated += 1
+            snap = doc_ref.get()
+            
+            if coll_name == 'users' and snap.exists:
+                # If user already exists in Firestore (e.g. Firebase UID), don't overwrite with Mongo UUID unless fields are missing
+                skipped += 1
+                continue
                 
-        print(f"  -> Migrated/Merged {migrated} documents for '{coll_name}'.", flush=True)
+            if not snap.exists:
+                doc_ref.set(clean)
+                migrated += 1
+            else:
+                # Update with any fields from Mongo that are missing in Firestore
+                existing = snap.to_dict() or {}
+                merged = {**clean, **existing} # keep existing Firestore values, backfill missing
+                doc_ref.set(merged, merge=True)
+                migrated += 1
+                
+        print(f"  -> Migrated/Merged {migrated}, Skipped {skipped} for '{coll_name}'.")
 
     # Specifically ensure rajamaran32's shop is set up and linked
     print("\nEnsuring merchant shop linking in Firestore...")

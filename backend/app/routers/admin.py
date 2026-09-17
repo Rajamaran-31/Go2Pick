@@ -378,19 +378,54 @@ async def approve_application(application_id: str, current_user: dict = Depends(
     update_application_status(application_id, "approved")
     app = APPLICATIONS_STORE.get(application_id, {})
 
-    # 2. Update Firestore application
+    # 2. Update Firestore if available
+    if firestore_db is not None:
+        try:
+            f_ref = firestore_db.collection("shopkeeper_applications").document(application_id)
+            f_snap = f_ref.get()
+            if f_snap.exists:
+                app = f_snap.to_dict()
+                f_ref.update({
+                    "status": "approved",
+                    "reviewedAt": now,
+                    "reviewedBy": current_user.get("_id", "admin")
+                })
+        except Exception as fe:
+            print(f"[WARN] Firestore approve error: {fe}")
+
+    # 3. Update MongoDB if available
+    if mongo_db is not None:
+        try:
+            m_doc = mongo_db["shopkeeper_applications"].find_one(build_id_filter(application_id))
+            if not m_doc:
+                m_doc = mongo_db["shopkeeper_requests"].find_one(build_id_filter(application_id))
+            if m_doc and not app:
+                app = m_doc
+            mongo_db["shopkeeper_applications"].update_many(
+                build_id_filter(application_id),
+                {"$set": {"status": "approved", "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+            )
+            mongo_db["shopkeeper_requests"].update_many(
+                build_id_filter(application_id),
+                {"$set": {"status": "approved", "reviewedAt": now, "reviewedBy": current_user.get("_id", "admin")}}
+            )
+        except Exception as me:
+            print(f"[WARN] Mongo approve error: {me}")
+
+    # 4. Update primary collection wrapper
     try:
         app_ref = db.collection("shopkeeper_applications").document(application_id)
         app_snap = app_ref.get()
         if app_snap.exists:
-            app = app_snap.to_dict()
-        app_ref.update({
-            "status": "approved",
-            "reviewedAt": now,
-            "reviewedBy": current_user.get("_id", "admin")
-        })
+            if not app:
+                app = app_snap.to_dict()
+            app_ref.update({
+                "status": "approved",
+                "reviewedAt": now,
+                "reviewedBy": current_user.get("_id", "admin")
+            })
     except Exception as fe:
-        print(f"[WARN] Firestore approve application error: {fe}")
+        pass
 
     shop_id = f"shop-{abs(hash(application_id))}"
 
@@ -420,6 +455,18 @@ async def approve_application(application_id: str, current_user: dict = Depends(
         shop_ref = db.collection("shops").document(shop_id)
         shop_ref.set(shop_doc)
 
+        if mongo_db is not None:
+            try:
+                mongo_db["shops"].replace_one({"_id": shop_id}, {**shop_doc, "_id": shop_id}, upsert=True)
+            except Exception:
+                pass
+
+        if firestore_db is not None:
+            try:
+                firestore_db.collection("shops").document(shop_id).set(shop_doc)
+            except Exception:
+                pass
+
         applicant_id = app.get("applicantId", app.get("userId"))
         applicant_email = (app.get("email") or app.get("applicantEmail") or "").lower()
         user_docs = []
@@ -437,16 +484,37 @@ async def approve_application(application_id: str, current_user: dict = Depends(
         if applicant_id:
             try:
                 db.collection("users").document(applicant_id).update(update_user_payload)
-            except Exception as e:
-                print(f"[WARN] Failed updating applicant in Firestore: {e}")
+            except Exception:
+                pass
+            if mongo_db is not None:
+                try:
+                    mongo_db["users"].update_many(build_id_filter(applicant_id), {"$set": update_user_payload})
+                except Exception:
+                    pass
+            if firestore_db is not None:
+                try:
+                    firestore_db.collection("users").document(applicant_id).update(update_user_payload)
+                except Exception:
+                    pass
 
         if applicant_email:
             try:
                 user_docs = list(db.collection("users").where("email", "==", applicant_email).stream())
                 for ud in user_docs:
                     db.collection("users").document(ud.id).update(update_user_payload)
-            except Exception as e:
-                print(f"[WARN] Failed updating applicant by email in Firestore: {e}")
+            except Exception:
+                pass
+            if mongo_db is not None:
+                try:
+                    mongo_db["users"].update_many({"email": applicant_email}, {"$set": update_user_payload})
+                except Exception:
+                    pass
+            if firestore_db is not None:
+                try:
+                    for ud in firestore_db.collection("users").where("email", "==", applicant_email).stream():
+                        firestore_db.collection("users").document(ud.id).update(update_user_payload)
+                except Exception:
+                    pass
 
         # Send notification to applicant ID and all email-matched user accounts
         notified_uids = set()
