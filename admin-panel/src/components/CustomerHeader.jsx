@@ -10,7 +10,7 @@ export default function CustomerHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser, refreshUser, logout } = useAuth();
-  const { unreadCount } = useAppContext();
+  const { unreadCount, setIsShopkeeperMode } = useAppContext();
   
   const [isSwitching, setIsSwitching] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,6 +20,7 @@ export default function CustomerHeader() {
   const handleSwitchMode = async () => {
     try {
       setIsSwitching(true);
+      if (setIsShopkeeperMode) setIsShopkeeperMode(true);
       localStorage.setItem('go2pick_mode', 'shopkeeper');
       const saved = localStorage.getItem('go2pick_user');
       if (saved) {
@@ -47,7 +48,7 @@ export default function CustomerHeader() {
       navigate('/shopkeeper');
     } catch (err) {
       const msg = err.response?.data?.detail || err.message;
-      alert("Failed to switch mode: " + msg);
+      console.error("Failed to switch mode:", msg);
     } finally {
       setIsSwitching(false);
     }

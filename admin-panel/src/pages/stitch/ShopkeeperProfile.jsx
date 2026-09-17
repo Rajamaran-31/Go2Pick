@@ -27,7 +27,6 @@ export default function ShopkeeperProfile() {
     } catch (err) {
       const msg = err.response?.data?.detail || err.message;
       console.error("Failed to switch mode:", msg);
-      alert("Failed to switch mode: " + msg);
     } finally {
       setIsSwitching(false);
     }

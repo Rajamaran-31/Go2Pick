@@ -7,14 +7,21 @@ export default function BottomTabBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const activeMode = user?.activeMode || user?.currentMode || localStorage.getItem('go2pick_mode') || 'customer';
+  const { isShopkeeperMode } = useAppContext();
+
+  // Instant mode detection from current path or app context state
+  const isShopkeeperRoute = location.pathname.startsWith('/shopkeeper');
+  const activeMode = isShopkeeperRoute 
+    ? 'shopkeeper' 
+    : (isShopkeeperMode ? 'shopkeeper' : (user?.activeMode || user?.currentMode || localStorage.getItem('go2pick_mode') || 'customer'));
 
   const isShopkeeperUser = Boolean(
     user && (
       user.isShopkeeper === true || 
       user.shopkeeperStatus === 'approved' || 
       user.activeShopId || 
-      user.role === 'shopkeeper'
+      user.role === 'shopkeeper' ||
+      isShopkeeperMode
     )
   );
 

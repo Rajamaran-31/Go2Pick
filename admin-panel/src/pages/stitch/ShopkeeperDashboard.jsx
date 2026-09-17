@@ -159,6 +159,7 @@ export default function ShopkeeperDashboard() {
   onClick={async () => {
     try {
       setIsSwitching(true);
+      if (setIsShopkeeperMode) setIsShopkeeperMode(false);
       await api.post('/api/auth/switch-mode', { activeMode: "customer" });
       localStorage.setItem('go2pick_mode', 'customer');
       if (user) {
@@ -169,7 +170,6 @@ export default function ShopkeeperDashboard() {
     } catch (err) {
       const msg = err.response?.data?.detail || err.message;
       console.error("Failed to switch to customer mode:", msg);
-      alert("Failed to switch to customer mode: " + msg);
       setIsSwitching(false);
     }
   }}
