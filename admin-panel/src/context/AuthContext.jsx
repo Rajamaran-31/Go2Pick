@@ -11,8 +11,17 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const login = (tokenValue, userData) => {
-    localStorage.setItem('admin_token', tokenValue);
-    localStorage.setItem('admin_user', JSON.stringify(userData));
+    const isSuper = (
+      userData?.role === 'super_admin' || 
+      userData?.role === 'admin' || 
+      userData?.isSuperAdmin === true || 
+      (userData?.email || '').toLowerCase() === 'rajamaran32@gmail.com' || 
+      (userData?.email || '').toLowerCase() === 'admin@go2pick.com'
+    );
+    if (isSuper) {
+      localStorage.setItem('admin_token', tokenValue);
+      localStorage.setItem('admin_user', JSON.stringify(userData));
+    }
     localStorage.setItem('go2pick_token', tokenValue);
     localStorage.setItem('go2pick_user', JSON.stringify(userData));
     setToken(tokenValue);
@@ -102,31 +111,38 @@ export function AuthProvider({ children }) {
           
           if (res.data && res.data.success !== false) {
              const userData = res.data.user || res.data;
-             if (isMounted) {
-               if (userData.role === 'super_admin' || userData.role === 'admin') {
-                 localStorage.setItem('admin_token', tokenValue);
-                 localStorage.setItem('admin_user', JSON.stringify(userData));
-               }
-               localStorage.setItem('go2pick_token', tokenValue);
-               localStorage.setItem('go2pick_user', JSON.stringify(userData));
+              if (isMounted) {
+                const isSuper = (
+                  userData.role === 'super_admin' || 
+                  userData.role === 'admin' || 
+                  userData.isSuperAdmin === true || 
+                  (userData.email || '').toLowerCase() === 'rajamaran32@gmail.com' || 
+                  (userData.email || '').toLowerCase() === 'admin@go2pick.com'
+                );
+                if (isSuper) {
+                  localStorage.setItem('admin_token', tokenValue);
+                  localStorage.setItem('admin_user', JSON.stringify(userData));
+                }
+                localStorage.setItem('go2pick_token', tokenValue);
+                localStorage.setItem('go2pick_user', JSON.stringify(userData));
 
-               const onAdminPage = window.location.pathname.startsWith('/admin');
-               const existingAdminUser = localStorage.getItem('admin_user');
-               if (onAdminPage && existingAdminUser && userData.role !== 'super_admin' && userData.role !== 'admin') {
-                 try {
-                   const parsedAdmin = JSON.parse(existingAdminUser);
-                   setUser(parsedAdmin);
-                   setToken(localStorage.getItem('admin_token'));
-                 } catch (e) {
-                   setUser(userData);
-                   setToken(tokenValue);
-                 }
-               } else {
-                 setToken(tokenValue);
-                 setUser(userData);
-               }
-               console.log("DEBUG [AuthContext]: Firebase auth restored successfully");
-             }
+                const onAdminPage = window.location.pathname.startsWith('/admin');
+                const existingAdminUser = localStorage.getItem('admin_user');
+                if (onAdminPage && existingAdminUser && !isSuper) {
+                  try {
+                    const parsedAdmin = JSON.parse(existingAdminUser);
+                    setUser(parsedAdmin);
+                    setToken(localStorage.getItem('admin_token'));
+                  } catch (e) {
+                    setUser(userData);
+                    setToken(tokenValue);
+                  }
+                } else {
+                  setToken(tokenValue);
+                  setUser(userData);
+                }
+                console.log("DEBUG [AuthContext]: Firebase auth restored successfully");
+              }
           } else {
              console.log("DEBUG [AuthContext]: backend me failed, trying local fallback");
              await handleLocalFallback();
@@ -176,7 +192,14 @@ export function AuthProvider({ children }) {
     setUser(newUserData);
   };
 
-  const isAuthenticated = !!token && (user?.role === 'admin' || user?.role === 'super_admin');
+  const isSuper = (
+    user?.role === 'admin' || 
+    user?.role === 'super_admin' || 
+    user?.isSuperAdmin === true || 
+    (user?.email || '').toLowerCase() === 'rajamaran32@gmail.com' || 
+    (user?.email || '').toLowerCase() === 'admin@go2pick.com'
+  );
+  const isAuthenticated = !!token && isSuper;
 
   return (
     <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, logout, refreshUser, setUser: updateUser }}>

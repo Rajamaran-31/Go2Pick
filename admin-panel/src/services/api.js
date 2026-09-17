@@ -30,27 +30,28 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const isAdminTarget = (config.url && config.url.includes('/admin')) || window.location.pathname.startsWith('/admin');
-  const adminToken = localStorage.getItem('admin_token');
-
-  // If this is an admin request or we are on an admin page, prioritize admin_token
-  if (isAdminTarget && adminToken) {
-    config.headers.Authorization = `Bearer ${adminToken}`;
-    return config;
-  }
-
   const user = auth.currentUser;
   if (user) {
     try {
       const token = await user.getIdToken();
-      config.headers.Authorization = `Bearer ${token}`;
-      return config;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        const email = (user.email || '').toLowerCase();
+        if (email === 'rajamaran32@gmail.com' || email === 'admin@go2pick.com') {
+          localStorage.setItem('admin_token', token);
+        }
+        return config;
+      }
     } catch (e) {
       console.error('Error getting Firebase ID Token:', e);
     }
   }
 
-  const fallbackToken = adminToken || localStorage.getItem('go2pick_token');
+  const isAdminTarget = (config.url && config.url.includes('/admin')) || window.location.pathname.startsWith('/admin');
+  const adminToken = localStorage.getItem('admin_token');
+  const go2pickToken = localStorage.getItem('go2pick_token');
+
+  const fallbackToken = isAdminTarget ? (adminToken || go2pickToken) : (go2pickToken || adminToken);
   if (fallbackToken) {
     config.headers.Authorization = `Bearer ${fallbackToken}`;
   }

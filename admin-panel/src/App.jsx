@@ -74,7 +74,7 @@ function AdminRoute() {
   const { user, token, loading } = useAuth();
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
 
-  const adminToken = token || localStorage.getItem('admin_token');
+  const adminToken = token || localStorage.getItem('admin_token') || localStorage.getItem('go2pick_token');
   let adminUser = user;
   if (!adminUser || (adminUser.role !== 'super_admin' && adminUser.role !== 'admin')) {
     try {
@@ -82,9 +82,17 @@ function AdminRoute() {
       if (parsed) adminUser = parsed;
     } catch (e) {}
   }
+  if (!adminUser) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('go2pick_user') || 'null');
+      if (parsed) adminUser = parsed;
+    } catch (e) {}
+  }
 
   const role = (adminUser?.role || '').toLowerCase();
-  const hasAccess = adminToken && (role === 'super_admin' || role === 'admin');
+  const email = (adminUser?.email || '').toLowerCase();
+  const isSuperAdminEmail = email === 'rajamaran32@gmail.com' || email === 'admin@go2pick.com';
+  const hasAccess = adminToken && (role === 'super_admin' || role === 'admin' || adminUser?.isSuperAdmin === true || isSuperAdminEmail);
   return hasAccess ? <Outlet /> : <Navigate to="/admin/login" replace />;
 }
 

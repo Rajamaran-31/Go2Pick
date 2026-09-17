@@ -174,8 +174,12 @@ async def get_current_user(
             detail="Your account has been blocked. Contact support."
         )
 
-    if user.get("email", "").lower() == settings.ADMIN_EMAIL.lower():
+    admin_email = settings.ADMIN_EMAIL.lower()
+    user_email_lower = user.get("email", "").lower()
+    if user_email_lower in [admin_email, "admin@go2pick.com"]:
         user["role"] = "super_admin"
+    if user_email_lower in [admin_email, "admin@go2pick.com", "rajamaran32@gmail.com"]:
+        user["isSuperAdmin"] = True
 
     # Ensure approved shopkeepers have shopkeeper context
     if user.get("shopkeeperStatus") == "approved":
@@ -260,7 +264,13 @@ async def require_super_admin(current_user: dict = Depends(get_current_user)) ->
     role = (current_user.get("role") or "").lower()
     email = (current_user.get("email") or "").lower()
     admin_email = get_settings().ADMIN_EMAIL.lower()
-    if role not in ["super_admin", "admin"] and email != admin_email:
+    super_admin_emails = {admin_email, "admin@go2pick.com", "rajamaran32@gmail.com"}
+    is_admin = (
+        role in ["super_admin", "admin"] or
+        email in super_admin_emails or
+        current_user.get("isSuperAdmin") is True
+    )
+    if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Super Admin access required"

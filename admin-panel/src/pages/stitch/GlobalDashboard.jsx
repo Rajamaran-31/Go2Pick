@@ -13,49 +13,67 @@ export default function GlobalDashboard() {
   const [systemHealth, setSystemHealth] = useState({ uptime: null, latency: null, dbLoad: null });
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
       try {
-        const [dashRes, appRes] = await Promise.all([
+        const [dashResult, appResult] = await Promise.allSettled([
           adminAPI.getDashboard(),
           adminAPI.getShopkeeperRequests({ status: 'pending', limit: 5 })
         ]);
 
-        if (dashRes.data?.success) {
-          setStats(dashRes.data);
+        if (dashResult.status === 'fulfilled' && dashResult.value?.data && isMounted) {
+          const d = dashResult.value.data;
+          setStats(prev => ({
+            totalUsers: d.totalUsers ?? prev.totalUsers ?? 0,
+            totalShops: d.totalShops ?? prev.totalShops ?? 0,
+            totalRevenue: d.totalRevenue ?? prev.totalRevenue ?? 0,
+            pendingApplications: d.pendingApplications ?? prev.pendingApplications ?? 0,
+            totalOrders: d.totalOrders ?? prev.totalOrders ?? 0,
+          }));
+        } else if (dashResult.status === 'rejected') {
+          console.warn('Dashboard stats fetch rejected:', dashResult.reason);
         }
-        if (appRes.data?.success && Array.isArray(appRes.data.applications)) {
-          setPendingApprovals(appRes.data.applications.map(a => ({
-            id: a.id,
-            shopName: a.shopName || a.shop_name || 'Shop',
-            name: a.shopName || a.applicantName || a.ownerName || 'Unknown',
-            applicantName: a.applicantName || a.ownerName || a.name || 'Applicant',
-            email: a.applicantEmail || a.email || '',
-            category: a.category || 'General',
-            date: a.submittedAt ? new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
-            status: a.status === 'pending' ? 'In Review' : a.status === 'approved' ? 'Approved' : 'Rejected',
-            initial: (a.shopName || a.applicantName || a.ownerName || 'SH').substring(0, 2).toUpperCase(),
-            error: false,
-            raw: a
-          })));
+
+        if (appResult.status === 'fulfilled' && appResult.value?.data && isMounted) {
+          const rawApps = appResult.value.data.applications || appResult.value.data.requests || (Array.isArray(appResult.value.data) ? appResult.value.data : []);
+          if (Array.isArray(rawApps)) {
+            setPendingApprovals(rawApps.map(a => ({
+              id: a.id || a._id,
+              shopName: a.shopName || a.shop_name || 'Shop',
+              name: a.shopName || a.applicantName || a.ownerName || 'Unknown',
+              applicantName: a.applicantName || a.ownerName || a.name || 'Applicant',
+              email: a.applicantEmail || a.email || '',
+              category: a.category || 'General',
+              date: a.submittedAt ? new Date(a.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+              status: a.status === 'pending' ? 'In Review' : a.status === 'approved' ? 'Approved' : 'Rejected',
+              initial: (a.shopName || a.applicantName || a.ownerName || 'SH').substring(0, 2).toUpperCase(),
+              error: false,
+              raw: a
+            })));
+          }
+        } else if (appResult.status === 'rejected') {
+          console.warn('Pending approvals fetch rejected:', appResult.reason);
         }
       } catch (err) {
         console.error('GlobalDashboard fetch error:', err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
     fetchData();
 
     // Fetch real system health
     adminAPI.getSystemHealth && adminAPI.getSystemHealth()
-      .then(res => { if (res.data) setSystemHealth(res.data); })
+      .then(res => { if (res.data && isMounted) setSystemHealth(res.data); })
       .catch(() => {});
     // Fallback: try direct API
     import('../../services/api').then(({ default: api }) => {
       api.get('/api/admin/system-health').then(res => {
-        if (res.data) setSystemHealth(res.data);
+        if (res.data && isMounted) setSystemHealth(res.data);
       }).catch(() => {});
     });
+
+    return () => { isMounted = false; };
   }, []);
 
   return (

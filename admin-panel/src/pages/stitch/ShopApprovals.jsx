@@ -14,53 +14,59 @@ export default function ShopApprovals() {
   const [stats, setStats] = useState({ pendingApplications: 0, totalShops: 0, processedCount: 0 });
 
   const fetchRequests = () => {
-    Promise.all([
+    Promise.allSettled([
       adminAPI.getShopkeeperRequests(),
       adminAPI.getDashboard()
-    ]).then(([resApps, resDash]) => {
+    ]).then(([resAppsSettled, resDashSettled]) => {
       setUnauthorized(false);
-      console.log("DEBUG [Admin] admin applications API response:", resApps.data);
-      const apps = resApps.data?.applications || (Array.isArray(resApps.data) ? resApps.data : []);
-      console.log("DEBUG [Admin] application count:", apps.length);
-      const mappedShops = apps.map(r => {
-        const applicantName = r.applicantName || r.ownerName || r.user_name || 'Unknown';
-        const shopName = r.shopName || r.shop_name || 'Unknown Shop';
-        const statusStr = (r.status || 'pending').toLowerCase();
-        return {
-          ...r,
-          id: r.id,
-          name: applicantName,
-          shop: shopName,
-          category: r.category || 'General',
-          status: statusStr === 'approved' ? 'Approved' : statusStr === 'rejected' ? 'Rejected' : 'Pending',
-          initial: applicantName ? applicantName.substring(0, 2).toUpperCase() : 'NA',
-          color: statusStr === 'approved' ? 'bg-success-green' : statusStr === 'rejected' ? 'bg-error-red' : 'bg-warning-amber',
-          submittedAt: r.submittedAt || r.createdAt,
-          email: r.applicantEmail || r.email || '',
-          phone: r.phone || '',
-          address: r.address || '',
-          city: r.city || '',
-          pincode: r.pincode || '',
-          description: r.description || '',
-          businessProof: r.businessProof || r.businessProofUrl || null,
-        };
-      });
-      setShops(mappedShops);
-      
+      let mappedShops = [];
+      if (resAppsSettled.status === 'fulfilled') {
+        const resApps = resAppsSettled.value;
+        const apps = resApps.data?.applications || (Array.isArray(resApps.data) ? resApps.data : []);
+        mappedShops = apps.map(r => {
+          const applicantName = r.applicantName || r.ownerName || r.user_name || 'Unknown';
+          const shopName = r.shopName || r.shop_name || 'Unknown Shop';
+          const statusStr = (r.status || 'pending').toLowerCase();
+          return {
+            ...r,
+            id: r.id,
+            name: applicantName,
+            shop: shopName,
+            category: r.category || 'General',
+            status: statusStr === 'approved' ? 'Approved' : statusStr === 'rejected' ? 'Rejected' : 'Pending',
+            initial: applicantName ? applicantName.substring(0, 2).toUpperCase() : 'NA',
+            color: statusStr === 'approved' ? 'bg-success-green' : statusStr === 'rejected' ? 'bg-error-red' : 'bg-warning-amber',
+            submittedAt: r.submittedAt || r.createdAt,
+            email: r.applicantEmail || r.email || '',
+            phone: r.phone || '',
+            address: r.address || '',
+            city: r.city || '',
+            pincode: r.pincode || '',
+            description: r.description || '',
+            businessProof: r.businessProof || r.businessProofUrl || null,
+          };
+        });
+        setShops(mappedShops);
+      } else if (resAppsSettled.reason?.response?.status === 403) {
+        setUnauthorized(true);
+      }
+
       const pendingCount = mappedShops.filter(s => s.status === 'Pending').length;
       const approvedCount = mappedShops.filter(s => s.status === 'Approved').length;
       const rejectedCount = mappedShops.filter(s => s.status === 'Rejected').length;
 
+      let totalShops = approvedCount;
+      if (resDashSettled.status === 'fulfilled') {
+        totalShops = resDashSettled.value?.data?.totalShops ?? approvedCount;
+      }
+
       setStats({
         pendingApplications: pendingCount,
-        totalShops: resDash.data?.totalShops || approvedCount,
+        totalShops: totalShops,
         processedCount: approvedCount + rejectedCount
       });
     }).catch(err => {
       console.error("Failed to fetch shop requests", err);
-      if (err.response?.status === 403) {
-        setUnauthorized(true);
-      }
     });
   };
 
