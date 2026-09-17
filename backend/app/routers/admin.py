@@ -731,19 +731,27 @@ async def list_shops(
     total = len(all_shops)
     paginated_shops = all_shops[skip : skip + limit]
 
+    # Pre-fetch owners in batch to eliminate N+1 latency
+    owner_ids = list({s.get("ownerId") for s in paginated_shops if s.get("ownerId") and not s.get("ownerName")})
+    owners_map = {}
+    if owner_ids and mongo_db is not None:
+        try:
+            for u in mongo_db["users"].find({"$or": [{"_id": {"$in": owner_ids}}, {"id": {"$in": owner_ids}}]}):
+                uid = str(u.get("_id") or u.get("id") or "")
+                if uid:
+                    owners_map[uid] = u
+        except Exception:
+            pass
+
     result = []
     for s in paginated_shops:
         owner_name = s.get("ownerName", s.get("owner_name"))
         owner_email = s.get("ownerEmail", s.get("owner_email", ""))
-        if not owner_name and s.get("ownerId"):
-            try:
-                owner_snap = db.collection("users").document(s.get("ownerId")).get()
-                if owner_snap.exists:
-                    owner_data = owner_snap.to_dict()
-                    owner_name = owner_data.get("fullName", owner_data.get("name", "Unknown"))
-                    owner_email = owner_data.get("email", "")
-            except Exception:
-                pass
+        o_id = s.get("ownerId")
+        if not owner_name and o_id and o_id in owners_map:
+            u_data = owners_map[o_id]
+            owner_name = u_data.get("fullName", u_data.get("name", "Unknown"))
+            owner_email = u_data.get("email", "")
         result.append({
             "id": str(s.get("id") or s.get("_id") or ""),
             "name": s.get("shopName", s.get("name", "Shop")),

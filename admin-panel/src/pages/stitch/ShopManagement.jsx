@@ -56,10 +56,23 @@ export default function ShopManagement() {
   useEffect(() => { fetchShops(); }, []);
 
   const handleToggle = async (shop) => {
+    const newActive = !shop.isActive;
+    // Optimistic UI update: immediately toggle button state in 0ms!
+    setShops(prev => prev.map(s => s.id === shop.id ? { ...s, isActive: newActive, suspended: !newActive } : s));
+    setStats(prev => ({
+      ...prev,
+      totalActiveShops: Math.max(0, (prev.totalActiveShops || 0) + (newActive ? 1 : -1))
+    }));
+
     try {
       await adminAPI.toggleShop(shop.id);
-      fetchShops();
     } catch (err) {
+      // Revert if network call fails
+      setShops(prev => prev.map(s => s.id === shop.id ? { ...s, isActive: !newActive, suspended: newActive } : s));
+      setStats(prev => ({
+        ...prev,
+        totalActiveShops: Math.max(0, (prev.totalActiveShops || 0) + (newActive ? -1 : 1))
+      }));
       alert('Failed to update shop: ' + (err.response?.data?.detail || err.message));
     }
   };
