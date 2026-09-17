@@ -42,12 +42,22 @@ export default function UserManagementwithNavDrawer() {
   }, []);
 
   const handleToggleBlock = async (user) => {
-    if (!window.confirm(`Are you sure you want to ${user.isBlocked ? 'unblock' : 'block'} ${user.name}?`)) return;
+    const nextBlocked = !user.isBlocked;
+    const nextStatus = nextBlocked ? 'Blocked' : 'Active';
+
+    // Optimistic UI update (0ms immediate feedback, no popup)
+    setUsers(prev => prev.map(u => u.id === user.id ? {
+      ...u,
+      isBlocked: nextBlocked,
+      status: nextStatus
+    } : u));
+
     try {
       await adminAPI.toggleBlockUser(user.id, user.isBlocked);
-      fetchUsers();
     } catch (err) {
-      alert('Failed to update user: ' + (err.response?.data?.detail || err.message));
+      // Revert on error
+      setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+      console.error('Failed to update user status:', err);
     }
   };
 
