@@ -211,7 +211,7 @@ export default function ShopManagement() {
 <span className="material-symbols-outlined text-[18px]">verified</span> Feature
 </button>
 )}
-<button onClick={(e) => { e.stopPropagation(); if (window.confirm(`${shop.isActive ? 'Suspend' : 'Activate'} ${shop.name}?`)) handleToggle(shop); }} className={`px-sm py-xs rounded-lg font-label-sm transition-all flex items-center gap-xs active:scale-95 cursor-pointer ${shop.isActive ? 'bg-error-red/10 text-error-red hover:bg-error-red hover:text-white' : 'bg-success-green/10 text-success-green hover:bg-success-green hover:text-white'}`} title={shop.isActive ? 'Suspend Shop' : 'Activate Shop'}>
+<button onClick={(e) => { e.stopPropagation(); handleToggle(shop); }} className={`px-sm py-xs rounded-lg font-label-sm transition-all flex items-center gap-xs active:scale-95 cursor-pointer ${shop.isActive ? 'bg-error-red/10 text-error-red hover:bg-error-red hover:text-white' : 'bg-success-green/10 text-success-green hover:bg-success-green hover:text-white'}`} title={shop.isActive ? 'Suspend Shop' : 'Activate Shop'}>
 <span className="material-symbols-outlined text-[18px]">{shop.isActive ? 'block' : 'check_circle'}</span> {shop.isActive ? 'Suspend' : 'Activate'}
 </button>
 </div>
