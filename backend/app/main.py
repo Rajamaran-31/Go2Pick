@@ -104,9 +104,24 @@ async def root():
 
 @app.get("/health")
 async def health():
+    db = Database.db
+    mongo = getattr(db, "mongo_db", None)
+    info = {}
+    if mongo is not None:
+        try:
+            info = {
+                "db_name": mongo.name,
+                "users": mongo["users"].count_documents({}),
+                "shops": mongo["shops"].count_documents({}),
+                "orders": mongo["orders"].count_documents({}),
+                "pending_apps": mongo["shopkeeper_applications"].count_documents({"status": "pending"}),
+            }
+        except Exception as e:
+            info = {"error": str(e)}
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
-        "database": "connected" if Database.db is not None else "disconnected"
+        "database": "connected" if db is not None else "disconnected",
+        "mongo_info": info
     }
 
