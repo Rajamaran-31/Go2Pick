@@ -34,6 +34,22 @@ async def apply_as_shopkeeper(
     db = get_db()
     user_id = str(current_user["_id"])
     user_email = (current_user.get("email") or body.email or "").lower()
+    mongo_db = getattr(db, "mongo_db", None)
+
+    # Check for existing pending application
+    if mongo_db is not None:
+        pending_filter = {
+            "status": "pending",
+            "$or": [
+                {"userId": user_id},
+                {"applicantId": user_id}
+            ]
+        }
+        if user_email:
+            pending_filter["$or"].extend([{"email": user_email}, {"applicantEmail": user_email}])
+        existing_app = mongo_db["shopkeeper_applications"].find_one(pending_filter)
+        if existing_app:
+            raise HTTPException(status_code=400, detail="You already have a pending application")
 
     now = datetime.now(timezone.utc)
     app_id = f"app-{uuid.uuid4().hex[:12]}"
@@ -52,6 +68,7 @@ async def apply_as_shopkeeper(
         "status": "pending",
         "createdAt": now.isoformat(),
         "shopImageUrl": None,
+        "businessProof": body.businessProof,
         "businessProofUrl": body.businessProof,
         "userId": user_id,
         "ownerName": body.ownerName or current_user.get("fullName", "Unknown"),
@@ -972,7 +989,11 @@ async def verify_pickup_code(
         try:
             mongo_db["orders"].update_many(
                 {"$or": [{"_id": order_id}, {"id": order_id}]},
-                {"$set": {"orderStatus": "completed", "paymentStatus": "completed", "updatedAt": now.isoformat()}}
+                {"$set": {"orderStatus": "completed", "status": "completed", "paymentStatus": "completed", "completedAt": now.isoformat(), "updatedAt": now.isoformat()}}
+            )
+            mongo_db["shops"].update_many(
+                build_id_filter(shop_id_str),
+                {"$inc": {"totalOrders": 1}, "$set": {"updatedAt": now.isoformat()}}
             )
         except Exception:
             pass
@@ -981,7 +1002,9 @@ async def verify_pickup_code(
         try:
             firestore_db.collection("orders").document(order_id).update({
                 "orderStatus": "completed",
+                "status": "completed",
                 "paymentStatus": "completed",
+                "completedAt": now,
                 "updatedAt": now
             })
         except Exception:

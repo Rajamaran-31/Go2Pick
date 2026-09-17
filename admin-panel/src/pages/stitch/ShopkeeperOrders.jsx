@@ -182,13 +182,13 @@ export default function ShopkeeperOrders() {
   };
 
   const completeHandover = async (id) => {
-    const pickupCode = prompt("Please enter the customer's 6-character pickup code to finalize the handover:");
+    const pickupCode = prompt("Please enter the customer's pickup code to finalize the handover:");
     if (pickupCode === null) {
       return; // User cancelled the prompt
     }
     const trimmedCode = pickupCode.trim();
-    if (trimmedCode.length !== 6) {
-      setErrorMessage("Invalid pickup code. The code must be exactly 6 characters.");
+    if (!trimmedCode || trimmedCode.length < 4 || trimmedCode.length > 8) {
+      setErrorMessage("Invalid pickup code. The code must be between 4 and 8 characters.");
       return;
     }
 

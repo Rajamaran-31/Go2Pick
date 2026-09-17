@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
+from typing import Optional, List
 from datetime import datetime, timezone
 import requests
 from firebase_admin import auth
@@ -527,14 +528,15 @@ async def update_profile(body: UpdateProfileRequest, current_user: dict = Depend
 
 
 class SwitchModeRequest(BaseModel):
-    activeMode: str
+    mode: Optional[str] = None
+    activeMode: Optional[str] = None
 
 @router.post("/switch-mode")
 async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_current_user)):
     """Switch between customer and shopkeeper mode."""
-    new_mode = body.activeMode
+    new_mode = (body.mode or body.activeMode or "").strip().lower()
     if new_mode not in ["customer", "shopkeeper"]:
-        raise HTTPException(status_code=400, detail="Invalid mode")
+        raise HTTPException(status_code=400, detail="Invalid mode. Must be 'customer' or 'shopkeeper'.")
 
     db = get_db()
     user_id = str(current_user["_id"])
@@ -633,4 +635,13 @@ async def switch_mode(body: SwitchModeRequest, current_user: dict = Depends(get_
         except Exception:
             pass
 
-    return {"success": True, "currentMode": new_mode, "activeMode": new_mode, "message": f"Switched to {new_mode} mode"}
+    user_snap = db.collection("users").document(user_id).get()
+    updated_user = user_snap.to_dict() if user_snap.exists else current_user
+
+    return {
+        "success": True,
+        "currentMode": new_mode,
+        "activeMode": new_mode,
+        "message": f"Switched to {new_mode} mode",
+        "user": updated_user
+    }
