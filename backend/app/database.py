@@ -238,7 +238,8 @@ class Database:
         mongo_client = None
         mongo_db = None
         mongo_url = settings.MONGODB_URL or "mongodb://rajamaran32:maran2007@ac-xvjluyj-shard-00-00.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-01.hobeyx3.mongodb.net:27017,ac-xvjluyj-shard-00-02.hobeyx3.mongodb.net:27017/?ssl=true&authSource=admin&retryWrites=true&w=majority"
-        db_name = settings.DATABASE_NAME or "go2pick"
+        raw_db_name = settings.DATABASE_NAME or "go2pick"
+        db_name = "go2pick" if raw_db_name.lower() == "go2pick" else raw_db_name
         try:
             ca_file = None
             try:
