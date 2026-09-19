@@ -24,7 +24,6 @@ export const CartProvider = ({ children }) => {
       const res = await api.post('/api/cart/', { product_id: product.id, quantity });
       if (res.status === 201 || res.status === 200) {
         fetchCart();
-        alert('Added to cart!');
       }
     } catch (err) {
       console.error("Cart add error", err);
@@ -37,7 +36,6 @@ export const CartProvider = ({ children }) => {
             const retryRes = await api.post('/api/cart/', { product_id: product.id, quantity });
             if (retryRes.status === 201 || retryRes.status === 200) {
               fetchCart();
-              alert('Added to cart!');
             }
           } catch (retryErr) {
             console.error("Cart add retry error", retryErr);
