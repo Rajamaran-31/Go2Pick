@@ -57,7 +57,8 @@ class MongoDocSnap:
         self.exists = doc is not None
         _raw_id = self._doc.get('_id', self._doc.get('id', ''))
         self.id = doc_id or (str(_raw_id) if _raw_id else "")
-        self.reference = MongoDocRef(coll, self.id, fs_coll) if coll else None
+        self.reference = MongoDocRef(coll, self.id, fs_coll) if coll is not None else None
+
 
 
     def to_dict(self) -> Dict[str, Any]:
