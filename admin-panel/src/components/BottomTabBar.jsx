@@ -15,16 +15,6 @@ export default function BottomTabBar() {
     ? 'shopkeeper' 
     : (isShopkeeperMode ? 'shopkeeper' : (user?.activeMode || user?.currentMode || localStorage.getItem('go2pick_mode') || 'customer'));
 
-  const isShopkeeperUser = Boolean(
-    user && (
-      user.isShopkeeper === true || 
-      user.shopkeeperStatus === 'approved' || 
-      user.activeShopId || 
-      user.role === 'shopkeeper' ||
-      isShopkeeperMode
-    )
-  );
-
   // Hide the bottom tab bar on these specific routes
   const hiddenPrefixes = ['/login', '/signup', '/welcome', '/forgot-password', '/reset-password', '/verify-email', '/admin/login', '/admin/shop-review'];
   const isHidden = hiddenPrefixes.some(prefix => location.pathname === prefix || location.pathname?.startsWith(prefix + '/'));
@@ -164,26 +154,13 @@ export default function BottomTabBar() {
         <span className="material-symbols-outlined text-[22px] md:text-[24px]">shopping_cart</span>
         <span className="font-label-sm text-[11px] md:text-label-sm font-bold mt-1 truncate w-full text-center">Cart</span>
       </Link>
-      {isShopkeeperUser ? (
-        <button 
-          onClick={() => {
-            localStorage.setItem('go2pick_mode', 'shopkeeper');
-            navigate('/shopkeeper');
-          }}
-          className="flex-1 min-w-0 flex flex-col items-center justify-center py-1 active:scale-90 duration-200 text-marketplace-orange hover:bg-surface-container-low cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">storefront</span>
-          <span className="font-label-sm text-[11px] md:text-label-sm font-bold mt-1 truncate w-full text-center">My Shop</span>
-        </button>
-      ) : (
-        <Link 
-          to="/orders" 
-          className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 active:scale-90 duration-200 ${location.pathname === '/orders' ? 'text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'}`}
-        >
-          <span className="material-symbols-outlined text-[22px] md:text-[24px]">receipt_long</span>
-          <span className="font-label-sm text-[11px] md:text-label-sm font-bold mt-1 truncate w-full text-center">Orders</span>
-        </Link>
-      )}
+      <Link 
+        to="/orders" 
+        className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 active:scale-90 duration-200 ${location.pathname === '/orders' ? 'text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'}`}
+      >
+        <span className="material-symbols-outlined text-[22px] md:text-[24px]">receipt_long</span>
+        <span className="font-label-sm text-[11px] md:text-label-sm font-bold mt-1 truncate w-full text-center">Orders</span>
+      </Link>
       <Link 
         to="/profile" 
         className={`flex-1 min-w-0 flex flex-col items-center justify-center py-1 active:scale-90 duration-200 ${location.pathname === '/profile' ? 'text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'}`}
