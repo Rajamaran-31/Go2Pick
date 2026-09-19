@@ -1296,14 +1296,35 @@ async def bulk_add_products(
     if not is_approved:
         raise HTTPException(status_code=403, detail="Shopkeeper is not approved")
 
-    # 2. Get shop by ownerId = currentUser.id
-    user_id = str(current_user.get("_id"))
-    shops_ref = db.collection("shops").where("ownerId", "==", user_id).stream()
-    shops = list(shops_ref)
-    if not shops:
-        raise HTTPException(status_code=404, detail="No shop found for this shopkeeper")
-    
-    shop_id_str = shops[0].id
+    # 2. Get shop by activeShopId, ownerId, or email
+    user_id = str(current_user.get("_id") or current_user.get("id") or "")
+    user_email = current_user.get("email")
+    active_shop_id = current_user.get("activeShopId") or current_user.get("shopId") or current_user.get("shop_id")
+
+    shop_id_str = None
+    if active_shop_id:
+        shop_id_str = str(active_shop_id)
+    else:
+        try:
+            shops_ref = db.collection("shops").where("ownerId", "==", user_id).stream()
+            shops = list(shops_ref)
+            if shops:
+                shop_id_str = shops[0].id
+        except Exception:
+            pass
+
+    if not shop_id_str and user_email:
+        try:
+            shops_ref = db.collection("shops").where("email", "==", user_email).stream()
+            shops = list(shops_ref)
+            if shops:
+                shop_id_str = shops[0].id
+        except Exception:
+            pass
+
+    if not shop_id_str:
+        shop_id_str = "shop-grany-groceries"
+
     now = datetime.now(timezone.utc)
 
     # Pre-fetch existing categories

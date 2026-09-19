@@ -212,6 +212,33 @@ class MongoQueryWrapper:
         return (None, MongoDocRef(self.coll, doc_id, self.fs_coll))
 
 
+class MongoBatch:
+    def __init__(self, db_wrapper: Any = None):
+        self.db_wrapper = db_wrapper
+        self.operations: List[Any] = []
+
+    def set(self, doc_ref: Any, data: Dict[str, Any]):
+        self.operations.append(('set', doc_ref, data))
+
+    def update(self, doc_ref: Any, data: Dict[str, Any]):
+        self.operations.append(('update', doc_ref, data))
+
+    def delete(self, doc_ref: Any):
+        self.operations.append(('delete', doc_ref))
+
+    def commit(self):
+        for op in self.operations:
+            op_type = op[0]
+            doc_ref = op[1]
+            if op_type == 'set':
+                doc_ref.set(op[2])
+            elif op_type == 'update':
+                doc_ref.update(op[2])
+            elif op_type == 'delete':
+                doc_ref.delete()
+        self.operations.clear()
+
+
 class MongoDatabaseWrapper:
     def __init__(self, mongo_db: Any, firestore_db: Any = None):
         self.mongo_db = mongo_db
@@ -229,6 +256,15 @@ class MongoDatabaseWrapper:
         if fs_coll is not None:
             return fs_coll
         raise HTTPException(status_code=503, detail="Database collection unavailable")
+
+    def batch(self) -> MongoBatch:
+        if self.firestore_db is not None:
+            try:
+                return self.firestore_db.batch()
+            except Exception:
+                pass
+        return MongoBatch(self)
+
 
 
 class Database:
