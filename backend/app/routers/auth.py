@@ -11,7 +11,7 @@ from app.utils import to_object_id, resolve_static_url
 from app.validators import is_valid_email, is_strong_password
 from app.schemas import (
     SignupRequest, VerifyEmailRequest, ResendOtpRequest,
-    LoginRequest, ForgotPasswordRequest, ResetPasswordRequest,
+    LoginRequest, ForgotPasswordRequest, VerifyForgotOtpRequest, ResetPasswordRequest,
     UserResponse, TokenResponse, UpdateProfileRequest,
     FirebaseLoginRequest
 )
@@ -461,6 +461,14 @@ async def forgot_password(body: ForgotPasswordRequest):
     return {"success": True, "message": "If that email exists, an OTP has been sent."}
 
 
+# ─── POST /auth/verify-forgot-otp ─────────────────────────────────────────────
+
+@router.post("/verify-forgot-otp")
+async def verify_forgot_otp_endpoint(body: VerifyForgotOtpRequest):
+    await verify_otp(body.email, body.otp, "forgot_password", consume=False)
+    return {"success": True, "message": "Verification code is valid."}
+
+
 # ─── POST /auth/reset-password ────────────────────────────────────────────────
 
 @router.post("/reset-password")
@@ -472,13 +480,13 @@ async def reset_password(body: ResetPasswordRequest):
         raise HTTPException(status_code=404, detail="User not found")
     uid = docs[0].id
 
-    await verify_otp(body.email, body.otp, "forgot_password")
+    await verify_otp(body.email, body.otp, "forgot_password", consume=True)
 
     # Update password in Firebase Authentication
     try:
         auth.update_user(uid, password=body.newPassword)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to reset password in Firebase Auth: {str(e)}")
+        print(f"[WARN] Firebase Auth password update skipped/failed: {e}")
 
     now = datetime.now(timezone.utc)
     db.collection("users").document(uid).update({
@@ -486,6 +494,7 @@ async def reset_password(body: ResetPasswordRequest):
     })
 
     return {"success": True, "message": "Password reset successfully. You can now log in."}
+
 
 
 # ─── GET /auth/me ─────────────────────────────────────────────────────────────

@@ -5,8 +5,12 @@ import api from '../../services/api';
 export default function ForgotPassword() {
   const navigate = useNavigate();
 
-  // State management
-  const [step, setStep] = useState(1); // 1: Email Request, 2: OTP & Reset Password, 3: Success
+  // Step 1: Email Input
+  // Step 2: Verification Code Input
+  // Step 3: New Password Input
+  // Step 4: Success State
+  const [step, setStep] = useState(1);
+
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
@@ -33,8 +37,8 @@ export default function ForgotPassword() {
     return () => clearInterval(interval);
   }, [step, timer]);
 
-  // Handle Step 1: Submit Email for OTP
-  const handleRequestOtp = async (e) => {
+  // Handle STEP 1: Send Verification Code
+  const handleSendCode = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
@@ -52,21 +56,21 @@ export default function ForgotPassword() {
 
       if (res.data?.success !== false) {
         setStep(2);
-        setSuccessMsg('A 6-digit verification code has been sent to your email.');
+        setSuccessMsg('Verification code sent to your email.');
         setTimer(59);
         setCanResend(false);
       } else {
-        setError(res.data?.message || 'Failed to send reset code. Please try again.');
+        setError(res.data?.message || 'Failed to send verification code.');
       }
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Error sending reset code.';
+      const msg = err.response?.data?.detail || err.message || 'Error sending code.';
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle OTP digit input changes
+  // OTP Input handlers
   const handleOtpChange = (index, value) => {
     if (value && !/^\d$/.test(value)) return;
 
@@ -74,7 +78,6 @@ export default function ForgotPassword() {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next field
     if (value && index < 5) {
       const nextInput = document.getElementById(`forgot-otp-input-${index + 1}`);
       if (nextInput) nextInput.focus();
@@ -103,8 +106,8 @@ export default function ForgotPassword() {
     }
   };
 
-  // Handle Resend OTP
-  const handleResendOtp = async () => {
+  // Resend OTP
+  const handleResendCode = async () => {
     if (!canResend || loading) return;
     setError('');
     setSuccessMsg('');
@@ -114,7 +117,7 @@ export default function ForgotPassword() {
         email: email.trim()
       });
       if (res.data?.success !== false) {
-        setSuccessMsg('A new verification code has been sent to your email.');
+        setSuccessMsg('A new 6-digit code has been sent to your email.');
         setTimer(59);
         setCanResend(false);
         setOtp(['', '', '', '', '', '']);
@@ -128,17 +131,44 @@ export default function ForgotPassword() {
     }
   };
 
-  // Handle Step 2: Verify OTP and Reset Password
-  const handleResetPassword = async (e) => {
+  // Handle STEP 2: Verify OTP Code
+  const handleVerifyCode = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
     const fullOtp = otp.join('');
     if (fullOtp.length !== 6) {
-      setError('Please enter the complete 6-digit verification code.');
+      setError('Please enter all 6 digits of the verification code.');
       return;
     }
+
+    try {
+      setLoading(true);
+      const res = await api.post('/api/auth/verify-forgot-otp', {
+        email: email.trim(),
+        otp: fullOtp
+      });
+
+      if (res.data?.success !== false) {
+        setStep(3);
+        setSuccessMsg('Code verified successfully! Please enter your new password.');
+      } else {
+        setError(res.data?.message || 'Invalid verification code.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Invalid or expired verification code.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle STEP 3: Change Password
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
 
     if (!newPassword || newPassword.length < 8) {
       setError('Password must be at least 8 characters long.');
@@ -155,6 +185,8 @@ export default function ForgotPassword() {
       return;
     }
 
+    const fullOtp = otp.join('');
+
     try {
       setLoading(true);
       const res = await api.post('/api/auth/reset-password', {
@@ -163,17 +195,17 @@ export default function ForgotPassword() {
         newPassword
       });
 
-      if (res.data?.success) {
-        setStep(3);
-        setSuccessMsg('Your password has been reset successfully!');
+      if (res.data?.success !== false) {
+        setStep(4);
+        setSuccessMsg('Password updated successfully!');
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       } else {
-        setError(res.data?.message || 'Password reset failed.');
+        setError(res.data?.message || 'Password update failed.');
       }
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Failed to reset password.';
+      const msg = err.response?.data?.detail || err.message || 'Failed to update password.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -188,7 +220,7 @@ export default function ForgotPassword() {
 
       {/* Main Content Canvas */}
       <main className="w-full max-w-[440px] px-lg py-2xl z-10 flex flex-col items-center justify-center">
-        {/* Logo / Branding Anchor */}
+        {/* Logo / Branding */}
         <div className="flex flex-col items-center mb-xl">
           <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-md shadow-lg shadow-primary/20 transition-transform hover:scale-105 duration-300">
             <span className="material-symbols-outlined text-white text-3xl">lock_reset</span>
@@ -202,16 +234,27 @@ export default function ForgotPassword() {
           {/* Header Section */}
           <div className="text-center space-y-1">
             <h2 className="text-xl font-bold text-slate-800">
-              {step === 1 ? 'Forgot Password?' : step === 2 ? 'Verify Code & Reset' : 'Password Reset Complete'}
+              {step === 1 && 'Forgot Password?'}
+              {step === 2 && 'Verify Code'}
+              {step === 3 && 'Set New Password'}
+              {step === 4 && 'Password Reset Complete'}
             </h2>
             <p className="text-xs text-slate-500 max-w-[320px] mx-auto">
-              {step === 1 
-                ? "Enter your registered email address and we'll send a 6-digit reset code." 
-                : step === 2 
-                ? `Enter the 6-digit code sent to ${email} and set your new password.` 
-                : "Your password has been updated. You can now log in."}
+              {step === 1 && "Enter your registered email address and we'll send a 6-digit verification code."}
+              {step === 2 && `Enter the 6-digit verification code sent to ${email}.`}
+              {step === 3 && 'Enter and confirm your new password below.'}
+              {step === 4 && 'Your password has been changed. You can now log in.'}
             </p>
           </div>
+
+          {/* Step Progress Indicators */}
+          {step <= 3 && (
+            <div className="flex items-center justify-center gap-2 py-1">
+              <div className={`h-2 rounded-full transition-all duration-300 ${step === 1 ? 'w-8 bg-primary' : 'w-2 bg-slate-200'}`}></div>
+              <div className={`h-2 rounded-full transition-all duration-300 ${step === 2 ? 'w-8 bg-primary' : 'w-2 bg-slate-200'}`}></div>
+              <div className={`h-2 rounded-full transition-all duration-300 ${step === 3 ? 'w-8 bg-primary' : 'w-2 bg-slate-200'}`}></div>
+            </div>
+          )}
 
           {/* Feedback Banners */}
           {error && (
@@ -230,7 +273,7 @@ export default function ForgotPassword() {
 
           {/* STEP 1: Enter Email Form */}
           {step === 1 && (
-            <form className="flex flex-col gap-4 w-full" onSubmit={handleRequestOtp}>
+            <form className="flex flex-col gap-4 w-full" onSubmit={handleSendCode}>
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 ml-1" htmlFor="email">Email Address</label>
                 <div className="relative group">
@@ -254,17 +297,15 @@ export default function ForgotPassword() {
                 className={`h-11 bg-primary hover:bg-primary-container text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] shadow-md shadow-primary/10 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} 
                 type="submit"
               >
-                <span>{loading ? "Sending Code..." : "Send Reset Code"}</span>
+                <span>{loading ? "Sending Code..." : "Send Verification Code"}</span>
                 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
               </button>
             </form>
           )}
 
-          {/* STEP 2: OTP & New Password Form */}
+          {/* STEP 2: Verify Code Form */}
           {step === 2 && (
-            <form className="flex flex-col gap-4 w-full" onSubmit={handleResetPassword}>
-              
-              {/* 6-Digit OTP Inputs */}
+            <form className="flex flex-col gap-4 w-full" onSubmit={handleVerifyCode}>
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-2 text-center">6-Digit Verification Code</label>
                 <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
@@ -283,8 +324,8 @@ export default function ForgotPassword() {
                   ))}
                 </div>
                 
-                {/* Resend Link */}
-                <div className="text-center mt-2">
+                {/* Resend Timer */}
+                <div className="text-center mt-3">
                   {!canResend ? (
                     <span className="text-[11px] text-slate-400">
                       Resend code in <strong className="text-slate-600">00:{timer < 10 ? `0${timer}` : timer}</strong>
@@ -292,7 +333,7 @@ export default function ForgotPassword() {
                   ) : (
                     <button 
                       type="button" 
-                      onClick={handleResendOtp}
+                      onClick={handleResendCode}
                       disabled={loading}
                       className="text-[12px] font-semibold text-primary hover:underline"
                     >
@@ -302,6 +343,29 @@ export default function ForgotPassword() {
                 </div>
               </div>
 
+              <button 
+                disabled={loading} 
+                className={`h-11 bg-primary hover:bg-primary-container text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] shadow-md shadow-primary/10 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} 
+                type="submit"
+              >
+                <span>{loading ? "Verifying Code..." : "Verify Code"}</span>
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setStep(1); setError(''); setSuccessMsg(''); }}
+                className="text-xs text-slate-500 hover:text-slate-700 text-center font-medium"
+              >
+                Change Email
+              </button>
+            </form>
+          )}
+
+          {/* STEP 3: Change Password Form */}
+          {step === 3 && (
+            <form className="flex flex-col gap-4 w-full" onSubmit={handleResetPassword}>
+              
               {/* New Password */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 ml-1">New Password</label>
@@ -344,28 +408,20 @@ export default function ForgotPassword() {
                 className={`h-11 bg-primary hover:bg-primary-container text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] shadow-md shadow-primary/10 mt-1 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} 
                 type="submit"
               >
-                <span>{loading ? "Resetting Password..." : "Reset Password"}</span>
-                <span className="material-symbols-outlined text-[18px]">check</span>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => { setStep(1); setError(''); setSuccessMsg(''); }}
-                className="text-xs text-slate-500 hover:text-slate-700 text-center font-medium"
-              >
-                Change Email
+                <span>{loading ? "Updating Password..." : "Update Password"}</span>
+                <span className="material-symbols-outlined text-[18px]">lock_reset</span>
               </button>
             </form>
           )}
 
-          {/* STEP 3: Reset Success State */}
-          {step === 3 && (
+          {/* STEP 4: Success State */}
+          {step === 4 && (
             <div className="flex flex-col items-center text-center gap-3 py-4 animate-in fade-in zoom-in duration-300">
               <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
                 <span className="material-symbols-outlined text-3xl">check_circle</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800">Password Reset Successful!</h3>
+                <h3 className="text-lg font-bold text-slate-800">Password Changed Successfully!</h3>
                 <p className="text-xs text-slate-500 mt-1">You can now sign in with your new password.</p>
               </div>
               <button

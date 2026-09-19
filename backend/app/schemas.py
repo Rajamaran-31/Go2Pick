@@ -53,10 +53,16 @@ class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 
+class VerifyForgotOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     otp: str
     newPassword: str = Field(..., min_length=8)
+
 
     @field_validator("newPassword")
     @classmethod

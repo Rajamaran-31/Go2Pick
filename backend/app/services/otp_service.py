@@ -29,7 +29,7 @@ async def create_otp(email: str, otp_type: str) -> str:
     return otp
 
 
-async def verify_otp(email: str, otp: str, otp_type: str) -> bool:
+async def verify_otp(email: str, otp: str, otp_type: str, consume: bool = True) -> bool:
     db = get_db()
     docs = list(db.collection("otps")
                 .where("email", "==", email.lower())
@@ -38,7 +38,7 @@ async def verify_otp(email: str, otp: str, otp_type: str) -> bool:
                 .stream())
 
     if not docs:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
+        raise HTTPException(status_code=400, detail="Invalid verification code. Please check and try again.")
 
     record = docs[0].to_dict()
     expires_at = record["expiresAt"]
@@ -49,8 +49,10 @@ async def verify_otp(email: str, otp: str, otp_type: str) -> bool:
 
     if expires_at < datetime.now(timezone.utc):
         docs[0].reference.delete()
-        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
 
-    # Consume (delete) OTP
-    docs[0].reference.delete()
+    # Consume (delete) OTP if requested
+    if consume:
+        docs[0].reference.delete()
     return True
+
