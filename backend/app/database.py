@@ -52,11 +52,13 @@ def build_id_filter(doc_id: Any) -> Dict[str, Any]:
 
 
 class MongoDocSnap:
-    def __init__(self, doc: Optional[Dict[str, Any]], doc_id: str = ""):
+    def __init__(self, doc: Optional[Dict[str, Any]], doc_id: str = "", coll: Any = None, fs_coll: Any = None):
         self._doc = doc or {}
         self.exists = doc is not None
         _raw_id = self._doc.get('_id', self._doc.get('id', ''))
         self.id = doc_id or (str(_raw_id) if _raw_id else "")
+        self.reference = MongoDocRef(coll, self.id, fs_coll) if coll else None
+
 
     def to_dict(self) -> Dict[str, Any]:
         d = dict(self._doc)
@@ -184,7 +186,8 @@ class MongoQueryWrapper:
         if self.limit_val > 0:
             cur = cur.limit(self.limit_val)
         for doc in cur:
-            yield MongoDocSnap(doc)
+            yield MongoDocSnap(doc, coll=self.coll, fs_coll=self.fs_coll)
+
 
     def document(self, doc_id: Optional[str] = None) -> MongoDocRef:
         import uuid
