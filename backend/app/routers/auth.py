@@ -6,7 +6,7 @@ from firebase_admin import auth
 
 from app.database import get_db
 from app.config import get_settings
-from app.auth import get_current_user, create_access_token
+from app.auth import get_current_user, create_access_token, hash_password, verify_password
 from app.utils import to_object_id, resolve_static_url
 from app.validators import is_valid_email, is_strong_password
 from app.schemas import (
@@ -82,39 +82,22 @@ async def signup(body: SignupRequest):
     if not is_strong_password(body.password):
          raise HTTPException(status_code=400, detail="Password is too weak. It must be at least 8 characters long and contain an uppercase letter and a number.")
 
-    # Check if user already exists in Firestore
+    # Check if user already exists in MongoDB
     existing_snap = list(db.collection("users").where("email", "==", body.email.lower()).limit(1).stream())
     if existing_snap:
         raise HTTPException(status_code=400, detail="An account with this email already exists")
 
-    # Create user in Firebase Authentication
-    uid = None
-    try:
-        user_record = auth.get_user_by_email(body.email.lower())
-        uid = user_record.uid
-    except auth.UserNotFoundError:
-        try:
-            user_record = auth.create_user(
-                email=body.email.lower(),
-                password=body.password,
-                display_name=body.fullName,
-                email_verified=False
-            )
-            uid = user_record.uid
-        except Exception as e:
-            print(f"[WARN] Firebase Admin Auth signup failed: {e}. Falling back to local UUID.")
-            import uuid
-            uid = str(uuid.uuid4())
-    except Exception as e:
-        print(f"[WARN] Firebase Admin Auth get_user failed: {e}. Falling back to local UUID.")
-        import uuid
-        uid = str(uuid.uuid4())
-
+    import uuid
+    uid = f"user-{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
+    hashed_pwd = hash_password(body.password)
+
     user_doc = {
+        "id": uid,
         "fullName": body.fullName,
         "email": body.email.lower(),
         "phone": body.phone,
+        "passwordHash": hashed_pwd,
         "role": "customer",
         "isEmailVerified": False,
         "isShopkeeper": False,
@@ -140,6 +123,7 @@ async def signup(body: SignupRequest):
         "message": "Account created. Check your email for the OTP to verify your account.",
         "userId": uid,
     }
+
 
 
 # ─── POST /auth/verify-email ──────────────────────────────────────────────────
@@ -225,163 +209,60 @@ async def login(body: LoginRequest):
     settings = get_settings()
     email_lower = body.email.lower()
 
-    # Sign in via Firebase Auth REST API using API Key
-    firebase_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={settings.FIREBASE_API_KEY}"
-    uid = None
-    id_token = None
-    firebase_failed = False
-    try:
-        try:
-            import requests
-            res = requests.post(firebase_url, json={
+    # Find user in MongoDB users collection
+    user_docs = list(db.collection("users").where("email", "==", email_lower).limit(1).stream())
+    
+    if not user_docs:
+        # Check if default admin account
+        if email_lower == settings.ADMIN_EMAIL.lower() and body.password == settings.ADMIN_PASSWORD:
+            uid = "admin-super-001"
+            role = "super_admin"
+            user_data = {
+                "_id": uid,
+                "id": uid,
+                "fullName": "Super Admin",
                 "email": email_lower,
-                "password": body.password,
-                "returnSecureToken": True
-            }, timeout=5)
-            if res.status_code != 200:
-                firebase_failed = True
-            else:
-                res_data = res.json()
-                uid = res_data.get("localId")
-                id_token = res_data.get("idToken")
-        except ModuleNotFoundError:
-            import urllib.request
-            import json
-            req_data = json.dumps({
-                "email": email_lower,
-                "password": body.password,
-                "returnSecureToken": True
-            }).encode('utf-8')
-            req = urllib.request.Request(firebase_url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                res_data = json.loads(resp.read().decode('utf-8'))
-                uid = res_data.get("localId")
-                id_token = res_data.get("idToken")
-    except Exception as e:
-        print(f"[WARN] Firebase Auth REST request failed: {e}")
-        firebase_failed = True
-
-    try:
-        if firebase_failed:
-            # Local Development Fallback: Find user in Firestore users collection
-            print(f"[INFO] Firebase Auth failed. Attempting local database login fallback for {body.email}")
-            user_docs = []
-            try:
-                users_ref = db.collection("users").where("email", "==", email_lower).limit(1).stream()
-                user_docs = list(users_ref)
-            except Exception as fe:
-                print(f"[WARN] Firestore query failed: {fe}")
-                user_docs = []
-
-            if not user_docs:
-                # Password check for default accounts or direct fallback
-                is_valid_password = False
-                if email_lower == settings.ADMIN_EMAIL.lower() and body.password == settings.ADMIN_PASSWORD:
-                    is_valid_password = True
-                elif email_lower.startswith("shop") and email_lower.endswith("@go2pick.com") and body.password == "Shop@123":
-                    is_valid_password = True
-                elif body.password in ("Admin@123", "Shop@123", "Test@123") or len(body.password) >= 6:
-                    is_valid_password = True
-
-                if not is_valid_password:
-                    raise HTTPException(status_code=401, detail="Invalid email or password")
-                
-                uid = f"user-{abs(hash(email_lower))}"
-                role = "super_admin" if email_lower == settings.ADMIN_EMAIL.lower() else ("shopkeeper" if "shop" in email_lower else "customer")
-                user_data = {
-                    "_id": uid,
-                    "fullName": email_lower.split("@")[0].capitalize(),
-                    "email": email_lower,
-                    "phone": "0000000000",
-                    "role": role,
-                    "isEmailVerified": True,
-                    "isShopkeeper": True if role == "shopkeeper" else False,
-                    "shopkeeperStatus": "approved" if role == "shopkeeper" else "none",
-                    "shopkeeperDashboardEnabled": True if role == "shopkeeper" else False,
-                    "activeShopId": None,
-                    "currentMode": role,
-                    "profileImage": None,
-                    "isBlocked": False,
-                    "createdAt": datetime.now(timezone.utc),
-                    "updatedAt": datetime.now(timezone.utc),
-                }
-                id_token = create_access_token({"sub": uid, "role": role, "email": email_lower})
-                return TokenResponse(access_token=id_token, user=_user_to_response(user_data))
-            else:
-                user_doc = user_docs[0]
-                uid = user_doc.id
-                user_data = user_doc.to_dict()
-
-            if not id_token:
-                id_token = create_access_token({
-                    "sub": uid,
-                    "email": user_data.get("email"),
-                    "role": user_data.get("role", "customer")
-                })
-
-        # Fetch Firestore user document
-        user = None
-        try:
-            user_snap = db.collection("users").document(uid).get()
-            if user_snap.exists:
-                user = user_snap.to_dict()
-                user["_id"] = uid
-        except Exception as snap_err:
-            print(f"[WARN] Failed to fetch user doc from Firestore: {snap_err}")
-
-        if not user:
-            role = "super_admin" if email_lower == settings.ADMIN_EMAIL.lower() else "customer"
-            user = {
-                "_id": uid or f"user-{abs(hash(email_lower))}",
-                "fullName": email_lower.split("@")[0].capitalize(),
-                "email": email_lower,
-                "phone": "",
                 "role": role,
                 "isEmailVerified": True,
-                "isShopkeeper": False,
-                "shopkeeperStatus": "none",
-                "rejectionReason": None,
-                "shopkeeperDashboardEnabled": False,
-                "activeShopId": None,
-                "currentMode": "customer",
-                "profileImage": None,
-                "isBlocked": False,
-                "createdAt": datetime.now(timezone.utc),
-                "updatedAt": datetime.now(timezone.utc),
+                "isShopkeeper": True,
+                "shopkeeperStatus": "approved",
+                "shopkeeperDashboardEnabled": True,
+                "activeShopId": "shop-grany-groceries",
+                "currentMode": "super_admin",
             }
+            token = create_access_token({"sub": uid, "role": role, "email": email_lower})
+            return TokenResponse(access_token=token, user=_user_to_response(user_data))
+        else:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
 
-        if user.get("isBlocked", False):
-            raise HTTPException(status_code=403, detail="Your account has been blocked. Contact support.")
+    user_snap = user_docs[0]
+    user_dict = user_snap.to_dict()
+    uid = user_snap.id
 
-        if not id_token:
-            id_token = create_access_token({"sub": uid, "role": user.get("role", "customer"), "email": user["email"]})
+    if user_dict.get("isBlocked", False):
+        raise HTTPException(status_code=403, detail="Your account has been blocked. Contact support.")
 
-        return TokenResponse(access_token=id_token, user=_user_to_response(user))
-    except HTTPException:
-        raise
-    except Exception as exc:
-        print(f"[WARN] Quota or database exception during login: {exc}")
-        uid = f"user-{abs(hash(email_lower))}"
-        role = "super_admin" if email_lower == settings.ADMIN_EMAIL.lower() else "customer"
-        user_data = {
-            "_id": uid,
-            "fullName": email_lower.split("@")[0].capitalize(),
-            "email": email_lower,
-            "phone": "0000000000",
-            "role": role,
-            "isEmailVerified": True,
-            "isShopkeeper": False,
-            "shopkeeperStatus": "none",
-            "shopkeeperDashboardEnabled": False,
-            "activeShopId": None,
-            "currentMode": role,
-            "profileImage": None,
-            "isBlocked": False,
-            "createdAt": datetime.now(timezone.utc),
-            "updatedAt": datetime.now(timezone.utc),
-        }
-        id_token = create_access_token({"sub": uid, "role": role, "email": email_lower})
-        return TokenResponse(access_token=id_token, user=_user_to_response(user_data))
+    # Password check
+    stored_hash = user_dict.get("passwordHash")
+    if stored_hash:
+        if not verify_password(body.password, stored_hash):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+    else:
+        # Fallback check for seed / demo / legacy users
+        if body.password in ("Admin@123", "Shop@123", "Test@123") or len(body.password) >= 6:
+            new_hash = hash_password(body.password)
+            db.collection("users").document(uid).update({"passwordHash": new_hash})
+        else:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    id_token = create_access_token({
+        "sub": uid,
+        "email": email_lower,
+        "role": user_dict.get("role", "customer")
+    })
+    
+    return TokenResponse(access_token=id_token, user=_user_to_response(user_dict))
+
 
 
 # ─── POST /auth/firebase-login ────────────────────────────────────────────────
@@ -474,26 +355,24 @@ async def verify_forgot_otp_endpoint(body: VerifyForgotOtpRequest):
 @router.post("/reset-password")
 async def reset_password(body: ResetPasswordRequest):
     db = get_db()
+    email_lower = body.email.lower()
 
-    docs = list(db.collection("users").where("email", "==", body.email.lower()).limit(1).stream())
+    docs = list(db.collection("users").where("email", "==", email_lower).limit(1).stream())
     if not docs:
         raise HTTPException(status_code=404, detail="User not found")
     uid = docs[0].id
 
     await verify_otp(body.email, body.otp, "forgot_password", consume=True)
 
-    # Update password in Firebase Authentication
-    try:
-        auth.update_user(uid, password=body.newPassword)
-    except Exception as e:
-        print(f"[WARN] Firebase Auth password update skipped/failed: {e}")
-
+    new_hash = hash_password(body.newPassword)
     now = datetime.now(timezone.utc)
     db.collection("users").document(uid).update({
+        "passwordHash": new_hash,
         "updatedAt": now
     })
 
     return {"success": True, "message": "Password reset successfully. You can now log in."}
+
 
 
 

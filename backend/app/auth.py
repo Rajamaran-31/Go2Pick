@@ -15,20 +15,44 @@ from datetime import timedelta
 security_scheme = HTTPBearer(auto_error=False)
 
 
-# ─── Password Hashing Shims (for seed compatibility) ──────────────────────────
+import hashlib
+import hmac
+import os
 
 def hash_password(password: str) -> str:
-    import bcrypt
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    try:
+        import bcrypt
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    except Exception:
+        salt = os.urandom(16)
+        key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+        return f"pbkdf2:sha256:100000${salt.hex()}${key.hex()}"
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    import bcrypt
-    try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-    except Exception:
+    if not hashed or not plain:
         return False
+    try:
+        import bcrypt
+        if hashed.startswith("$2b$") or hashed.startswith("$2a$"):
+            return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        pass
+
+    if hashed.startswith("pbkdf2:sha256:"):
+        try:
+            parts = hashed.split("$")
+            if len(parts) == 3:
+                _, salt_hex, key_hex = parts
+                salt = bytes.fromhex(salt_hex)
+                expected_key = bytes.fromhex(key_hex)
+                actual_key = hashlib.pbkdf2_hmac('sha256', plain.encode('utf-8'), salt, 100000)
+                return hmac.compare_digest(actual_key, expected_key)
+        except Exception:
+            return False
+    return False
+
 
 
 # ─── JWT Token Helpers ────────────────────────────────────────────────────────
