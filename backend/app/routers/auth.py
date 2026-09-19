@@ -242,18 +242,19 @@ async def login(body: LoginRequest):
     if user_dict.get("isBlocked", False):
         raise HTTPException(status_code=403, detail="Your account has been blocked. Contact support.")
 
-    # Password check
+    # Strict Password Check
     stored_hash = user_dict.get("passwordHash")
     if stored_hash:
         if not verify_password(body.password, stored_hash):
             raise HTTPException(status_code=401, detail="Invalid email or password")
     else:
-        # Fallback check for seed / demo / legacy users
-        if body.password in ("Admin@123", "Shop@123", "Test@123") or len(body.password) >= 6:
+        # Fallback ONLY for initial seed demo accounts (Admin@123, Shop@123, Test@123)
+        if body.password in ("Admin@123", "Shop@123", "Test@123"):
             new_hash = hash_password(body.password)
             db.collection("users").document(uid).update({"passwordHash": new_hash})
         else:
             raise HTTPException(status_code=401, detail="Invalid email or password")
+
 
     id_token = create_access_token({
         "sub": uid,
