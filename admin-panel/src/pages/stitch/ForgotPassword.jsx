@@ -1,15 +1,183 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import api from '../../services/api';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e) => {
+  // State management
+  const [step, setStep] = useState(1); // 1: Email Request, 2: OTP & Reset Password, 3: Success
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const [timer, setTimer] = useState(59);
+  const [canResend, setCanResend] = useState(false);
+
+  // Resend Countdown Timer
+  useEffect(() => {
+    let interval = null;
+    if (step === 2 && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (timer === 0) {
+      setCanResend(true);
+    }
+    return () => clearInterval(interval);
+  }, [step, timer]);
+
+  // Handle Step 1: Submit Email for OTP
+  const handleRequestOtp = async (e) => {
     e.preventDefault();
-    navigate('/verify-email');
+    setError('');
+    setSuccessMsg('');
+
+    if (!email || !email.trim()) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.post('/api/auth/forgot-password', {
+        email: email.trim()
+      });
+
+      if (res.data?.success !== false) {
+        setStep(2);
+        setSuccessMsg('A 6-digit verification code has been sent to your email.');
+        setTimer(59);
+        setCanResend(false);
+      } else {
+        setError(res.data?.message || 'Failed to send reset code. Please try again.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Error sending reset code.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle OTP digit input changes
+  const handleOtpChange = (index, value) => {
+    if (value && !/^\d$/.test(value)) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next field
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`forgot-otp-input-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`forgot-otp-input-${index - 1}`);
+      if (prevInput) {
+        prevInput.focus();
+        const newOtp = [...otp];
+        newOtp[index - 1] = '';
+        setOtp(newOtp);
+      }
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (/^\d{6}$/.test(pastedData)) {
+      setOtp(pastedData.split(''));
+      const lastInput = document.getElementById(`forgot-otp-input-5`);
+      if (lastInput) lastInput.focus();
+    }
+  };
+
+  // Handle Resend OTP
+  const handleResendOtp = async () => {
+    if (!canResend || loading) return;
+    setError('');
+    setSuccessMsg('');
+    try {
+      setLoading(true);
+      const res = await api.post('/api/auth/forgot-password', {
+        email: email.trim()
+      });
+      if (res.data?.success !== false) {
+        setSuccessMsg('A new verification code has been sent to your email.');
+        setTimer(59);
+        setCanResend(false);
+        setOtp(['', '', '', '', '', '']);
+      } else {
+        setError(res.data?.message || 'Failed to resend code.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Step 2: Verify OTP and Reset Password
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    const fullOtp = otp.join('');
+    if (fullOtp.length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (!/(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+      setError('Password must contain at least one uppercase letter and one number.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.post('/api/auth/reset-password', {
+        email: email.trim(),
+        otp: fullOtp,
+        newPassword
+      });
+
+      if (res.data?.success) {
+        setStep(3);
+        setSuccessMsg('Your password has been reset successfully!');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        setError(res.data?.message || 'Password reset failed.');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to reset password.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -17,77 +185,218 @@ export default function ForgotPassword() {
       {/* Atmospheric Background Elements */}
       <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-surface-container/30 rounded-full blur-[100px] pointer-events-none"></div>
-      
+
       {/* Main Content Canvas */}
       <main className="w-full max-w-[440px] px-lg py-2xl z-10 flex flex-col items-center justify-center">
         {/* Logo / Branding Anchor */}
         <div className="flex flex-col items-center mb-xl">
           <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-md shadow-lg shadow-primary/20 transition-transform hover:scale-105 duration-300">
-            <span className="material-symbols-outlined text-white text-3xl" data-icon="lock_reset">lock_reset</span>
+            <span className="material-symbols-outlined text-white text-3xl">lock_reset</span>
           </div>
-          <h1 className="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-on-surface tracking-tight">Go2Pick</h1>
+          <h1 className="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-primary tracking-tight font-bold">Go2Pick</h1>
         </div>
-        
+
         {/* Card Container */}
-        <div className="glass-panel border border-white/40 shadow-xl rounded-2xl p-xl flex flex-col gap-lg w-full bg-surface-container-lowest">
+        <div className="glass-panel border border-white/40 shadow-xl rounded-2xl p-6 sm:p-8 flex flex-col gap-5 w-full bg-white">
+          
           {/* Header Section */}
-          <div className="text-center space-y-xs">
-            <h2 className="font-title-md text-title-md text-on-surface">Reset Password</h2>
-            <p className="font-body-md text-on-surface-variant max-w-[300px] mx-auto">
-              Enter the email address associated with your account and we'll send a link to reset your password.
+          <div className="text-center space-y-1">
+            <h2 className="text-xl font-bold text-slate-800">
+              {step === 1 ? 'Forgot Password?' : step === 2 ? 'Verify Code & Reset' : 'Password Reset Complete'}
+            </h2>
+            <p className="text-xs text-slate-500 max-w-[320px] mx-auto">
+              {step === 1 
+                ? "Enter your registered email address and we'll send a 6-digit reset code." 
+                : step === 2 
+                ? `Enter the 6-digit code sent to ${email} and set your new password.` 
+                : "Your password has been updated. You can now log in."}
             </p>
           </div>
-          {/* Form Section */}
-          {!success ? (
-            <form className="flex flex-col gap-md w-full" onSubmit={handleSubmit}>
-              <div className="space-y-base">
-                <label className="font-label-sm text-label-sm text-on-surface-variant ml-1" htmlFor="email">Email Address</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-md flex items-center pointer-events-none transition-colors group-focus-within:text-primary">
-                    <span className="material-symbols-outlined text-[20px]" data-icon="mail">mail</span>
-                  </div>
-                  <input value={email} onChange={e => setEmail(e.target.value)} className="w-full h-12 pl-[48px] pr-md bg-surface-container-lowest border border-border-gray rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-on-surface placeholder:text-outline-variant/60" id="email" placeholder="name@company.com" required="" type="email"/>
-                </div>
-              </div>
-              {/* Primary Action */}
-              <button className="h-12 bg-primary hover:bg-primary-container text-on-primary font-title-md text-body-lg rounded-xl flex items-center justify-center gap-xs transition-all duration-200 active:scale-[0.98] shadow-md shadow-primary/10" id="submitButton" type="submit">
-                <span>Send Reset Link</span>
-                <span className="material-symbols-outlined text-[18px]" data-icon="arrow_forward">arrow_forward</span>
-              </button>
-            </form>
-          ) : (
-            <div className="flex-col items-center text-center gap-md py-md animate-in fade-in zoom-in duration-300 flex" id="successState">
-              {/* Success State */}
-              <div className="w-12 h-12 bg-success-green/10 text-success-green rounded-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl" data-icon="check_circle" style={{'fontVariationSettings': "'FILL' 1"}}>check_circle</span>
-              </div>
-              <div>
-                <h3 className="font-title-md text-title-md text-on-surface">Link Sent!</h3>
-                <p className="font-body-md text-on-surface-variant mt-xs">Check your inbox for instructions to reset your password.</p>
-              </div>
+
+          {/* Feedback Banners */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-xs flex items-start gap-2">
+              <span className="material-symbols-outlined text-base text-red-500 shrink-0 mt-0.5">error</span>
+              <span>{error}</span>
             </div>
           )}
+
+          {successMsg && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-xl text-xs flex items-start gap-2">
+              <span className="material-symbols-outlined text-base text-green-600 shrink-0 mt-0.5">check_circle</span>
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* STEP 1: Enter Email Form */}
+          {step === 1 && (
+            <form className="flex flex-col gap-4 w-full" onSubmit={handleRequestOtp}>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 ml-1" htmlFor="email">Email Address</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary">
+                    <span className="material-symbols-outlined text-[20px]">mail</span>
+                  </div>
+                  <input 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    className="w-full h-11 pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm text-slate-800 placeholder:text-slate-400" 
+                    id="email" 
+                    placeholder="name@example.com" 
+                    required 
+                    type="email"
+                  />
+                </div>
+              </div>
+
+              <button 
+                disabled={loading} 
+                className={`h-11 bg-primary hover:bg-primary-container text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] shadow-md shadow-primary/10 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} 
+                type="submit"
+              >
+                <span>{loading ? "Sending Code..." : "Send Reset Code"}</span>
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </button>
+            </form>
+          )}
+
+          {/* STEP 2: OTP & New Password Form */}
+          {step === 2 && (
+            <form className="flex flex-col gap-4 w-full" onSubmit={handleResetPassword}>
+              
+              {/* 6-Digit OTP Inputs */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-2 text-center">6-Digit Verification Code</label>
+                <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                  {otp.map((digit, index) => (
+                    <input
+                      key={index}
+                      id={`forgot-otp-input-${index}`}
+                      type="text"
+                      maxLength="1"
+                      pattern="\d*"
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      className="w-10 h-12 text-center text-lg font-bold border-2 border-slate-200 rounded-lg focus:border-primary focus:outline-none bg-slate-50 transition-all"
+                    />
+                  ))}
+                </div>
+                
+                {/* Resend Link */}
+                <div className="text-center mt-2">
+                  {!canResend ? (
+                    <span className="text-[11px] text-slate-400">
+                      Resend code in <strong className="text-slate-600">00:{timer < 10 ? `0${timer}` : timer}</strong>
+                    </span>
+                  ) : (
+                    <button 
+                      type="button" 
+                      onClick={handleResendOtp}
+                      disabled={loading}
+                      className="text-[12px] font-semibold text-primary hover:underline"
+                    >
+                      Resend Verification Code
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* New Password */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 ml-1">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min 8 chars, 1 uppercase & 1 number"
+                    className="w-full h-11 pl-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm text-slate-800 placeholder:text-slate-400"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 ml-1">Confirm New Password</label>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm text-slate-800 placeholder:text-slate-400"
+                  required
+                />
+              </div>
+
+              <button 
+                disabled={loading} 
+                className={`h-11 bg-primary hover:bg-primary-container text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] shadow-md shadow-primary/10 mt-1 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`} 
+                type="submit"
+              >
+                <span>{loading ? "Resetting Password..." : "Reset Password"}</span>
+                <span className="material-symbols-outlined text-[18px]">check</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => { setStep(1); setError(''); setSuccessMsg(''); }}
+                className="text-xs text-slate-500 hover:text-slate-700 text-center font-medium"
+              >
+                Change Email
+              </button>
+            </form>
+          )}
+
+          {/* STEP 3: Reset Success State */}
+          {step === 3 && (
+            <div className="flex flex-col items-center text-center gap-3 py-4 animate-in fade-in zoom-in duration-300">
+              <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl">check_circle</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Password Reset Successful!</h3>
+                <p className="text-xs text-slate-500 mt-1">You can now sign in with your new password.</p>
+              </div>
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full h-11 bg-primary text-white font-semibold text-sm rounded-xl mt-2"
+              >
+                Go to Sign In
+              </button>
+            </div>
+          )}
+
           {/* Divider */}
-          <div className="relative h-[1px] bg-border-gray">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-border-gray to-transparent"></div>
+          <div className="relative h-[1px] bg-slate-100 my-1">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
           </div>
-          {/* Back to Login Anchor */}
+
+          {/* Back to Login */}
           <div className="text-center">
-            <Link className="inline-flex items-center gap-xs font-label-sm text-label-sm text-primary hover:text-primary-container transition-colors py-xs px-md rounded-lg hover:bg-primary/5" to="/login">
-              <span className="material-symbols-outlined text-[16px]" data-icon="arrow_back">arrow_back</span>
+            <Link className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline py-1 px-3 rounded-lg" to="/login">
+              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
               Back to Login
             </Link>
           </div>
+
         </div>
-        {/* Footer / Branding */}
-        <p className="mt-xl text-center font-label-sm text-label-sm text-on-surface-variant/60 px-lg">
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-xs text-slate-400 px-4">
           By proceeding, you agree to Go2Pick's Privacy Policy and Terms of Service.
         </p>
       </main>
-      {/* Visual Polish Elements */}
-      <div className="fixed inset-0 pointer-events-none">
-        <img className="hidden" data-alt="A sophisticated abstract background with soft, flowing gradients of deep professional blue and clean white. The lighting is diffused and high-key, creating a high-trust corporate atmosphere. Subtle textures like frosted glass or silk create a sense of refined depth and modern elegance, consistent with a secure financial or tech login interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4ubpYwhEfASibrTvG_EMyfI1ggczifZCpi4EhmIkFrkzAGfOIrL4_klJbFtK2CzShNgydPUNkonad6MXnv_E0WMF2-4_BmwfcNMOOIADPvStAxpHnXld7BKXoYYhhw7jRShH0X_3yxXbSBIezefOHHfSnav6J7SbIHA5r7wB4CqwMBDg1TAI3KSr6oXPH3JMbiuLpxja6aCyWb7Zz8ojKT0gIDl6t_p9buWTD_8rMjn-5EzZoArIs7Mbz00m3sVbMyIkgcwe0qv4e"/>
-      </div>
     </div>
   );
 }
