@@ -451,11 +451,6 @@ async def add_to_cart(body: FrontendCartAddRequest, current_user: dict = Depends
     if not shop_id_val:
         raise HTTPException(status_code=400, detail="Product does not belong to any shop")
 
-    shop_snap = db.collection("shops").document(shop_id_val).get()
-    if not shop_snap.exists:
-        raise HTTPException(status_code=404, detail="Shop not found")
-    shop = shop_snap.to_dict()
-
     cart_ref = db.collection("carts").document(user_id)
     cart_snap = cart_ref.get()
     existing_cart = cart_snap.to_dict() if cart_snap.exists else None
@@ -467,16 +462,25 @@ async def add_to_cart(body: FrontendCartAddRequest, current_user: dict = Depends
                 detail="You can only order from one shop at a time. Clear your cart first.",
             )
         else:
-            # The cart exists but has no items, so we can safely overwrite the shop details.
             existing_cart["shopId"] = shop_id_val
-            existing_cart["shopName"] = shop.get("shopName", shop.get("name", ""))
+
+    shop_name = existing_cart.get("shopName") if existing_cart else None
+    if not shop_name:
+        try:
+            shop_snap = db.collection("shops").document(shop_id_val).get()
+            shop_name = shop_snap.to_dict().get("shopName", shop_snap.to_dict().get("name", "")) if shop_snap.exists else "Shop"
+        except Exception:
+            shop_name = "Shop"
+
+    if existing_cart:
+        existing_cart["shopName"] = shop_name
 
     # Create cart if not exists
     if not existing_cart:
         cart_data = {
             "userId": user_id,
             "shopId": shop_id_val,
-            "shopName": shop.get("shopName", shop.get("name", "")),
+            "shopName": shop_name,
             "items": [],
             "createdAt": datetime.now(timezone.utc),
             "updatedAt": datetime.now(timezone.utc),
@@ -515,7 +519,38 @@ async def add_to_cart(body: FrontendCartAddRequest, current_user: dict = Depends
         "updatedAt": datetime.now(timezone.utc)
     })
 
-    return {"success": True, "message": "Item added to cart"}
+    formatted_items = []
+    for item in items:
+        unit_v = item.get("productUnit") or item.get("product_unit") or "pc"
+        formatted_items.append({
+            "id": str(item.get("productId", "")),
+            "productId": str(item.get("productId", "")),
+            "product_id": str(item.get("productId", "")),
+            "productName": item.get("productName", ""),
+            "product_name": item.get("productName", ""),
+            "productPrice": item.get("productPrice", 0),
+            "product_price": item.get("productPrice", 0),
+            "productImage": item.get("productImage"),
+            "product_image": item.get("productImage"),
+            "productUnit": unit_v,
+            "product_unit": unit_v,
+            "shopId": str(shop_id_val),
+            "shop_id": str(shop_id_val),
+            "shopName": shop_name,
+            "shop_name": shop_name,
+            "quantity": item.get("quantity", 1),
+            "subtotal": item.get("subtotal", 0),
+        })
+
+    total = sum(it.get("subtotal", 0) for it in formatted_items)
+    return {
+        "success": True,
+        "message": "Item added to cart",
+        "items": formatted_items,
+        "total": total,
+        "shopId": str(shop_id_val),
+        "shopName": shop_name
+    }
 
 
 # ─── PUT /cart/{product_id} ───────────────────────────────────────────────────
