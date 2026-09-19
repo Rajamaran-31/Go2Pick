@@ -49,8 +49,16 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SocialLoginRequest(BaseModel):
+    provider: str = "google"
+    email: EmailStr
+    fullName: Optional[str] = None
+    profileImage: Optional[str] = None
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
 
 
 class VerifyForgotOtpRequest(BaseModel):

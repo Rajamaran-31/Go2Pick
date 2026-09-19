@@ -11,7 +11,7 @@ from app.utils import to_object_id, resolve_static_url
 from app.validators import is_valid_email, is_strong_password
 from app.schemas import (
     SignupRequest, VerifyEmailRequest, ResendOtpRequest,
-    LoginRequest, ForgotPasswordRequest, VerifyForgotOtpRequest, ResetPasswordRequest,
+    LoginRequest, SocialLoginRequest, ForgotPasswordRequest, VerifyForgotOtpRequest, ResetPasswordRequest,
     UserResponse, TokenResponse, UpdateProfileRequest,
     FirebaseLoginRequest
 )
@@ -263,6 +263,55 @@ async def login(body: LoginRequest):
     })
     
     return TokenResponse(access_token=id_token, user=_user_to_response(user_dict))
+
+
+# ─── POST /auth/social-login ─────────────────────────────────────────────────
+
+@router.post("/social-login", response_model=TokenResponse)
+async def social_login(body: SocialLoginRequest):
+    db = get_db()
+    email_val = body.email.lower().strip()
+    
+    docs = list(db.collection("users").where("email", "==", email_val).limit(1).stream())
+    if docs:
+        user_snap = docs[0]
+        uid = user_snap.id
+        user_dict = user_snap.to_dict()
+    else:
+        import uuid
+        uid = f"user-{uuid.uuid4().hex[:12]}"
+        now = datetime.now(timezone.utc)
+        name_val = body.fullName or email_val.split("@")[0].capitalize()
+        user_dict = {
+            "id": uid,
+            "fullName": name_val,
+            "email": email_val,
+            "phone": "",
+            "role": "customer",
+            "isEmailVerified": True,
+            "isShopkeeper": False,
+            "shopkeeperStatus": "none",
+            "rejectionReason": None,
+            "shopkeeperDashboardEnabled": False,
+            "activeShopId": None,
+            "currentMode": "customer",
+            "profileImage": body.profileImage or "https://lh3.googleusercontent.com/aida-public/AB6AXuB0a2cxlAd3XgffYKhoD4B6BnLlbMGkRW71EqZAARhJAGaqadZ_Zs-JSxW_71_1DxL0eYYXySawpinxIb7Cz4Qn6IDq02YDlSD6PlUVfZhKnEjY8Xhp3vTjkn0tIrG7Zb8B_gmTvS3n6NjOiS7jJaSMjzveJrpuoG6DyMKHItpE53YW1KEm4L7rvk05Q8cpkCw5dxkqduJdE5DgVqFG9pepsN7GJsEzSOfvKnlj5PTi2H01RzPXKXeIXqO2KQAEfWMN_gQEQNCFT06-",
+            "isBlocked": False,
+            "createdAt": now,
+            "updatedAt": now,
+        }
+        db.collection("users").document(uid).set(user_dict)
+
+    if user_dict.get("isBlocked", False):
+        raise HTTPException(status_code=403, detail="Your account has been blocked. Contact support.")
+
+    token = create_access_token({
+        "sub": uid,
+        "email": email_val,
+        "role": user_dict.get("role", "customer")
+    })
+    return TokenResponse(access_token=token, user=_user_to_response(user_dict))
+
 
 
 

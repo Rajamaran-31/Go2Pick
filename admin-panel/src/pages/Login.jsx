@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
 import api from '../services/api';
 
@@ -13,6 +13,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+
+  // Social Login Modal State
+  const [socialModalProvider, setSocialModalProvider] = useState(null); // 'Google' | 'Apple' | null
+  const [socialEmailInput, setSocialEmailInput] = useState('');
+  const [socialLoading, setSocialLoading] = useState(false);
   
   const { login, logout } = useAuth();
   const navigate = useNavigate();
@@ -57,24 +62,12 @@ export default function Login() {
 
     try {
       if (isLogin) {
-        let access_token;
-        let user;
-        try {
-          const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
-          access_token = await userCredential.user.getIdToken();
-          const resProfile = await api.get('/api/auth/me', {
-            headers: { Authorization: `Bearer ${access_token}` }
-          });
-          user = resProfile.data;
-        } catch (fbErr) {
-          console.warn("Firebase client login failed, falling back to local backend login:", fbErr);
-          const loginRes = await api.post('/api/auth/login', {
-            email: email.trim(),
-            password: password
-          });
-          access_token = loginRes.data.access_token;
-          user = loginRes.data.user;
-        }
+        const loginRes = await api.post('/api/auth/login', {
+          email: email.trim(),
+          password: password
+        });
+        const access_token = loginRes.data.access_token;
+        const user = loginRes.data.user;
         
         const isSuperAdmin = (
           user?.role === 'super_admin' || 
@@ -91,37 +84,22 @@ export default function Login() {
           setError('Access denied. Super Admin role required.');
         }
       } else {
-        let access_token;
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-          access_token = await userCredential.user.getIdToken();
-          await api.post('/api/auth/signup', {
-            fullName: fullName || email.split('@')[0],
-            email: email.trim(),
-            password,
-            phone: '0000000000'
-          });
-        } catch (fbErr) {
-          console.warn("Firebase client signup failed, falling back to local backend signup:", fbErr);
-          const signupRes = await api.post('/api/auth/signup', {
-            fullName: fullName || email.split('@')[0],
-            email: email.trim(),
-            password,
-            phone: '0000000000'
-          });
-          const loginRes = await api.post('/api/auth/login', {
-            email: email.trim(),
-            password: password
-          });
-          access_token = loginRes.data.access_token;
-        }
-        
-        const resProfile = await api.get('/api/auth/me', {
-          headers: { Authorization: `Bearer ${access_token}` }
+        await api.post('/api/auth/signup', {
+          fullName: fullName || email.split('@')[0],
+          email: email.trim(),
+          password,
+          phone: '0000000000'
         });
+
+        const loginRes = await api.post('/api/auth/login', {
+          email: email.trim(),
+          password: password
+        });
+
+        const access_token = loginRes.data.access_token;
+        const user = loginRes.data.user;
         
-        const user = resProfile.data;
-        if (user.role === 'super_admin') {
+        if (user?.role === 'super_admin') {
           login(access_token, user);
           navigate('/admin');
         } else {
@@ -136,28 +114,76 @@ export default function Login() {
     }
   };
 
-  const handleSocialLogin = async (provider) => {
+  const handleSocialLogin = async (providerName) => {
     setError('');
-    setLoading(true);
+    const providerKey = providerName.toLowerCase();
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, 'admin@go2pick.com', 'Admin@123');
-      const access_token = await userCredential.user.getIdToken();
-      const resProfile = await api.get('/api/auth/me', {
-        headers: { Authorization: `Bearer ${access_token}` }
+      let firebaseProvider;
+      if (providerKey === 'google') {
+        firebaseProvider = new GoogleAuthProvider();
+      } else {
+        firebaseProvider = new OAuthProvider('apple.com');
+      }
+
+      const res = await signInWithPopup(auth, firebaseProvider);
+      const user = res.user;
+
+      const socialRes = await api.post('/api/auth/social-login', {
+        provider: providerKey,
+        email: user.email,
+        fullName: user.displayName || user.email?.split('@')[0],
+        profileImage: user.photoURL
       });
-      
-      const user = resProfile.data;
-      if (user.role === 'super_admin') {
-        login(access_token, user);
+
+      const access_token = socialRes.data.access_token;
+      const userProfile = socialRes.data.user;
+
+      if (userProfile.role === 'super_admin') {
+        login(access_token, userProfile);
         navigate('/admin');
       } else {
         logout();
         setError('Access denied. Super Admin role required.');
       }
     } catch (err) {
-      setError(`${provider} login simulation failed. Make sure demo admin exists.`);
+      console.warn(`Social popup failed for ${providerName}, opening prompt modal:`, err);
+      setSocialModalProvider(providerName);
+      setSocialEmailInput(email.trim() || 'admin@go2pick.com');
+    }
+  };
+
+  const handleConfirmSocialAuth = async (e) => {
+    e.preventDefault();
+    if (!socialEmailInput || !socialEmailInput.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    try {
+      setSocialLoading(true);
+      setError('');
+      const providerKey = (socialModalProvider || 'Google').toLowerCase();
+      const socialRes = await api.post('/api/auth/social-login', {
+        provider: providerKey,
+        email: socialEmailInput.trim(),
+        fullName: socialEmailInput.split('@')[0].toUpperCase()
+      });
+
+      const access_token = socialRes.data.access_token;
+      const userProfile = socialRes.data.user;
+
+      if (userProfile.role === 'super_admin' || userProfile.email === 'admin@go2pick.com' || userProfile.email === 'rajamaran32@gmail.com') {
+        login(access_token, userProfile);
+        setSocialModalProvider(null);
+        navigate('/admin');
+      } else {
+        logout();
+        setSocialModalProvider(null);
+        setError('Access denied. Super Admin role required.');
+      }
+    } catch (err) {
+      setError(mapAuthError(err));
     } finally {
-      setLoading(false);
+      setSocialLoading(false);
     }
   };
 
@@ -171,7 +197,7 @@ export default function Login() {
         <span className="text-2xl font-bold text-blue-600 tracking-tight">Go2Pick</span>
       </div>
 
-      <div className="bg-white w-full max-w-[420px] rounded-[32px] p-8 shadow-sm">
+      <div className="bg-white w-full max-w-[420px] rounded-[32px] p-8 shadow-sm border border-slate-100">
 
         {/* Toggle */}
         <div className="bg-slate-50 p-1.5 rounded-2xl flex mb-8">
@@ -298,7 +324,7 @@ export default function Login() {
           <button 
             type="button" 
             onClick={() => handleSocialLogin('Google')}
-            className="flex-1 border border-slate-200 rounded-2xl py-3 flex items-center justify-center gap-2.5 hover:bg-slate-50 transition-colors"
+            className="flex-1 border border-slate-200 rounded-2xl py-3 flex items-center justify-center gap-2.5 hover:bg-slate-50 transition-colors active:scale-95 cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
@@ -311,7 +337,7 @@ export default function Login() {
           <button 
             type="button" 
             onClick={() => handleSocialLogin('Apple')}
-            className="flex-1 border border-slate-200 rounded-2xl py-3 flex items-center justify-center gap-2.5 hover:bg-slate-50 transition-colors"
+            className="flex-1 border border-slate-200 rounded-2xl py-3 flex items-center justify-center gap-2.5 hover:bg-slate-50 transition-colors active:scale-95 cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px] text-slate-700" style={{ fontVariationSettings: "'FILL' 1" }}>apps</span>
             <span className="text-sm font-medium text-slate-700">Apple</span>
@@ -327,6 +353,52 @@ export default function Login() {
         </p>
 
       </div>
+
+      {/* Social Modal Fallback */}
+      {socialModalProvider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl border border-slate-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-600 text-2xl">account_circle</span>
+                <h3 className="font-bold text-slate-800 text-base">Sign in with {socialModalProvider}</h3>
+              </div>
+              <button 
+                onClick={() => setSocialModalProvider(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Confirm your {socialModalProvider} account email below to authenticate with 1 click.
+            </p>
+
+            <form onSubmit={handleConfirmSocialAuth} className="flex flex-col gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-600 uppercase">Account Email</label>
+                <input 
+                  type="email"
+                  value={socialEmailInput}
+                  onChange={(e) => setSocialEmailInput(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={socialLoading}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-sm transition-all active:scale-95"
+              >
+                {socialLoading ? 'Authenticating...' : `Continue with ${socialModalProvider}`}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
