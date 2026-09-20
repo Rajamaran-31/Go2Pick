@@ -1667,3 +1667,66 @@ async def update_user_role_admin(user_id: str, body: dict, current_user: dict = 
 
     return {"success": True, "message": f"User role updated to {new_role}"}
 
+
+@router.post("/invite")
+async def invite_admin(body: dict):
+    email = (body.get("email") or "").strip().lower()
+    role = (body.get("role") or "Operations").strip()
+    inviter_name = body.get("inviterName") or "Go2Pick Super Admin"
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required.")
+    
+    from app.services.email_service import send_admin_invite_email
+    import threading
+    
+    # Dispatch email in background thread for ultra-fast instant UI response
+    threading.Thread(
+        target=send_admin_invite_email, 
+        args=(email, role, inviter_name), 
+        daemon=True
+    ).start()
+    
+    # Record in database
+    db = get_db()
+    mongo_db = getattr(db, "mongo_db", None)
+    if mongo_db is not None:
+        try:
+            mongo_db["admin_invitations"].update_one(
+                {"email": email},
+                {"$set": {
+                    "email": email,
+                    "role": role,
+                    "status": "invited",
+                    "invited_at": datetime.now(timezone.utc)
+                }},
+                upsert=True
+            )
+        except Exception as e:
+            print(f"[WARN] Failed to record admin invitation in MongoDB: {e}")
+            
+    return {
+        "success": True,
+        "message": f"Invitation email sent to {email} as {role}"
+    }
+
+
+@router.get("/admins")
+async def get_admin_list():
+    db = get_db()
+    mongo_db = getattr(db, "mongo_db", None)
+    invites = []
+    if mongo_db is not None:
+        try:
+            for doc in mongo_db["admin_invitations"].find({}).sort("invited_at", -1):
+                invites.append({
+                    "id": str(doc.get("_id", doc.get("email"))),
+                    "email": doc.get("email"),
+                    "role": doc.get("role", "Operations"),
+                    "status": doc.get("status", "invited"),
+                    "invitedAt": str(doc.get("invited_at", ""))
+                })
+        except Exception as e:
+            print(f"[WARN] Error fetching admin invites: {e}")
+    return {"success": True, "admins": invites}
+
+

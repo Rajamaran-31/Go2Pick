@@ -110,7 +110,54 @@ export default function PlatformSettings() {
 
     // Fast non-blocking feedback toast
     triggerToast(`Invitation sent to ${email} as ${assignedRole}`);
+
+    // Call backend API to dispatch real email invitation via SMTP
+    adminAPI.inviteAdmin({ email, role: assignedRole, inviterName: "Go2Pick Super Admin" })
+      .then(res => {
+        console.log("Invitation API response:", res.data);
+      })
+      .catch(err => {
+        console.error("Failed to send admin invite via API:", err);
+      });
   };
+
+  useEffect(() => {
+    adminAPI.getAdmins()
+      .then(res => {
+        if (res.data?.admins?.length > 0) {
+          const mapped = res.data.admins.map(a => {
+            const emailPrefix = (a.email || '').split('@')[0];
+            const name = emailPrefix
+              .split(/[._-]/)
+              .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(' ') || a.email;
+            const roleBadgeClass = a.role === 'Super Admin'
+              ? 'bg-primary-container text-on-primary-container'
+              : a.role === 'Operations'
+              ? 'bg-secondary-container text-white'
+              : a.role === 'Support Lead'
+              ? 'bg-trust-blue text-white'
+              : 'bg-surface-variant text-primary';
+            return {
+              id: a.id || a.email,
+              name: name,
+              email: a.email,
+              role: a.role || 'Operations',
+              roleBadgeClass,
+              permissions: ['INVITED_MEMBER', (a.role || 'ADMIN').toUpperCase().replace(/\s+/g, '_')],
+              lastActive: 'Invited',
+              image: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0066cc&color=fff`
+            };
+          });
+          setAdmins(prev => {
+            const existingEmails = new Set(prev.map(x => (x.email || '').toLowerCase()));
+            const newEntries = mapped.filter(x => !existingEmails.has((x.email || '').toLowerCase()));
+            return [...newEntries, ...prev];
+          });
+        }
+      })
+      .catch(err => console.error('Failed to load admin invites:', err));
+  }, []);
 
   useEffect(() => {
     adminAPI.getDashboard()

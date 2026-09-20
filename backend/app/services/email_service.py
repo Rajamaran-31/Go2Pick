@@ -104,3 +104,48 @@ def send_shop_rejected_email(email: str, shopName: str, reason: str) -> bool:
     </div>
     """
     return _send_email(email, subject, html)
+
+
+def send_admin_invite_email(email: str, role: str, inviter_name: str = "Go2Pick Super Admin") -> bool:
+    subject = f"Invitation: Join Go2Pick Administration as {role}"
+    html = f"""
+    <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background-color:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h1 style="color:#ff6600;margin:0;font-size:28px;font-weight:800;letter-spacing:-0.5px;">Go2Pick</h1>
+        <p style="color:#64748b;margin:4px 0 0 0;font-size:14px;">Local Commerce & Counter Pickup Platform</p>
+      </div>
+      
+      <div style="background-color:#ffffff;padding:32px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <h2 style="color:#0f172a;margin-top:0;font-size:20px;font-weight:700;">You've Been Invited to Join Go2Pick</h2>
+        <p style="color:#334155;font-size:15px;line-height:1.6;">Hello,</p>
+        <p style="color:#334155;font-size:15px;line-height:1.6;">
+          You have been officially invited by <strong>{inviter_name}</strong> to join the administrative team of <strong>Go2Pick</strong> with the following assigned role:
+        </p>
+        
+        <div style="background-color:#fff7ed;border-left:4px solid #ff6600;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0;">
+          <span style="font-size:13px;text-transform:uppercase;color:#ea580c;font-weight:700;letter-spacing:1px;display:block;margin-bottom:4px;">Assigned Role</span>
+          <span style="font-size:20px;font-weight:700;color:#0f172a;">{role}</span>
+        </div>
+        
+        <p style="color:#334155;font-size:15px;line-height:1.6;">
+          As an administrator, you have access to manage platform settings, oversee local shops, handle support tickets, and view operational analytics.
+        </p>
+        
+        <div style="text-align:center;margin:32px 0;">
+          <a href="https://go2-pick.vercel.app/admin/settings" style="background-color:#ff6600;color:#ffffff;padding:14px 32px;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;display:inline-block;box-shadow:0 4px 12px rgba(255,102,0,0.25);">
+            Open Admin Dashboard
+          </a>
+        </div>
+        
+        <p style="color:#64748b;font-size:13px;line-height:1.6;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;">
+          Log in or register with your email <strong>{email}</strong> at <a href="https://go2-pick.vercel.app" style="color:#ff6600;text-decoration:none;font-weight:600;">go2-pick.vercel.app</a> to access your administrative workspace.
+        </p>
+      </div>
+      
+      <div style="text-align:center;margin-top:24px;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">&copy; 2026 Go2Pick. All rights reserved.</p>
+      </div>
+    </div>
+    """
+    return _send_email(email, subject, html)
+

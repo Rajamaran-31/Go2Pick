@@ -31,11 +31,11 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "Admin@123"
 
     # SMTP Settings
-    SMTP_HOST: str = ""
+    SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_SENDER: str = ""
+    SMTP_USERNAME: str = "rajamaran32@gmail.com"
+    SMTP_PASSWORD: str = "pkri scux thlu mlzl"
+    SMTP_SENDER: str = "rajamaran32@gmail.com"
 
     # Cloudinary Settings
     CLOUDINARY_CLOUD_NAME: str = ""

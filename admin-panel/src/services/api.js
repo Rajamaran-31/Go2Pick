@@ -86,6 +86,8 @@ export const adminAPI = {
   getOrders: (params) => api.get('/api/admin/orders', { params }),
   getReviews: (params) => api.get('/api/admin/reviews', { params }),
   updateReviewStatus: (id, status) => api.put(`/api/admin/reviews/${id}/status`, { status }),
+  inviteAdmin: (data) => api.post('/api/admin/invite', data),
+  getAdmins: () => api.get('/api/admin/admins'),
 };
 
 export const shopsAPI = {
