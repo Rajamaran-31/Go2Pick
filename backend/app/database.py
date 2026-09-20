@@ -265,6 +265,32 @@ class MongoDatabaseWrapper:
                 pass
         return MongoBatch(self)
 
+    def transaction(self) -> Any:
+        if self.firestore_db is not None:
+            try:
+                return self.firestore_db.transaction()
+            except Exception:
+                pass
+        return MongoTransaction(self)
+
+
+class MongoTransaction:
+    def __init__(self, db_wrapper: Any):
+        self.db_wrapper = db_wrapper
+
+    def get(self, ref: Any) -> Any:
+        return ref.get()
+
+    def update(self, ref: Any, data: Dict[str, Any]) -> None:
+        ref.update(data)
+
+    def set(self, ref: Any, data: Dict[str, Any]) -> None:
+        ref.set(data)
+
+    def delete(self, ref: Any) -> None:
+        ref.delete()
+
+
 
 
 class Database:

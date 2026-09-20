@@ -8,25 +8,25 @@ export default function CheckoutWithConfirmationPopup() {
   const { cartItems, cartTotal, clearCart } = useCart();
   const [step, setStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [orderCode, setOrderCode] = useState('');
   const [orderId, setOrderId] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
 
-  const handlePlaceOrder = () => {
-    setStep(1);
-  };
-
-  const handleConfirm = async () => {
+  const handlePlaceOrder = async () => {
+    if (isProcessing) return;
     setIsProcessing(true);
+    setErrorMessage('');
+
     try {
-      const shopId = cartItems?.length > 0 ? (cartItems[0].shop_id || cartItems[0].shopId) : '';
+      const shopId = cartItems?.length > 0 ? (cartItems[0].shop_id || cartItems[0].shopId || '') : '';
       const orderItems = (cartItems || []).map(item => ({
-        product_id: item.product_id,
-        name: item.product_name || item.name || '',
-        price: item.product_price || item.price || 0,
+        product_id: item.product_id || item.productId || item.id || item._id,
+        name: item.product_name || item.productName || item.name || 'Product',
+        price: item.product_price || item.productPrice || item.price || 0,
         quantity: item.quantity || 1,
-        image: item.product_image || item.image || ''
+        image: item.product_image || item.productImage || item.image || ''
       }));
 
       const res = await api.post('/api/orders/', {
@@ -46,8 +46,13 @@ export default function CheckoutWithConfirmationPopup() {
       clearCart();
       setStep(2);
     } catch (error) {
+      if (error.response?.status === 401) {
+        setErrorMessage('Please log in to place your order.');
+        setTimeout(() => navigate('/login?redirect=/checkout'), 1200);
+        return;
+      }
       const errMsg = error.response?.data?.detail || 'Failed to place order. Please try again.';
-      alert(errMsg);
+      setErrorMessage(errMsg);
     } finally {
       setIsProcessing(false);
     }
@@ -170,55 +175,40 @@ export default function CheckoutWithConfirmationPopup() {
       </main>
 
       {/* Bottom Action Area */}
-      <div className="fixed bottom-[68px] w-full p-gutter bg-surface/80 backdrop-blur-md z-40 border-t border-outline-variant/30">
+      <div className="fixed bottom-[68px] w-full p-gutter bg-surface/80 backdrop-blur-md z-40 border-t border-outline-variant/30 space-y-sm max-w-lg left-1/2 -translate-x-1/2">
+        {errorMessage && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl text-sm flex items-center justify-between gap-2 shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-500 text-base">error</span>
+              <span>{errorMessage}</span>
+            </div>
+            <button onClick={() => setErrorMessage('')} className="text-red-500 hover:text-red-700 font-bold p-1">
+              ✕
+            </button>
+          </div>
+        )}
         <button 
           onClick={handlePlaceOrder}
           disabled={isProcessing || (cartItems?.length > 0 && !cartItems[0].shop_id && !cartItems[0].shopId)}
-          className="w-full h-14 bg-primary text-on-primary rounded-xl font-title-md text-title-md shadow-lg flex items-center justify-center gap-sm active:scale-95 transition-all hover:bg-primary-container disabled:opacity-80"
+          className="w-full h-14 bg-primary text-on-primary rounded-xl font-title-md text-title-md shadow-lg flex items-center justify-center gap-sm active:scale-95 transition-all hover:bg-primary-container disabled:opacity-80 disabled:cursor-not-allowed"
         >
-          Place Order
-          <span className="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+          {isProcessing ? (
+            <>
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Placing Order...</span>
+            </>
+          ) : (
+            <>
+              <span>Place Order</span>
+              <span className="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+            </>
+          )}
         </button>
       </div>
 
-      {/* Checkout with Confirmation Popup */}
-      {step === 1 && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center px-gutter">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isProcessing && setStep(0)}></div>
-          
-          <div className="relative w-full max-w-sm bg-surface-container-lowest rounded-3xl p-xl shadow-2xl modal-animate-in text-center space-y-md animate-[modalIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]">
-            <h3 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Confirm Your Order</h3>
-            <p className="text-body-md text-on-surface-variant">Are you ready to finalize your purchase of ₹{cartTotal?.toFixed(2) || '0.00'}?</p>
-            
-            <div className="flex flex-col gap-sm pt-md">
-              <button 
-                className="w-full h-12 bg-primary text-on-primary rounded-xl font-title-md text-body-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-xs" 
-                onClick={handleConfirm}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing...
-                  </>
-                ) : (
-                  "Confirm"
-                )}
-              </button>
-              <button 
-                className="w-full h-12 bg-surface-container-high text-on-surface-variant rounded-xl font-title-md text-body-lg active:scale-95 transition-all" 
-                onClick={() => !isProcessing && setStep(0)}
-                disabled={isProcessing}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Order Confirmed Popup */}
       {step === 2 && (
