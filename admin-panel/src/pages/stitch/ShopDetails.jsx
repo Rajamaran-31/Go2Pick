@@ -5,7 +5,32 @@ import { useAuth } from '../../context/AuthContext';
 import api, { API_BASE, getImageUrl } from '../../services/api';
 import { formatIndianTime } from '../../utils/timeFormat';
 
-const defaultShopImage = "https://placehold.co/800x400?text=Shop+Cover";
+export const getShopCoverFallback = (category = '', shopName = '') => {
+  const cat = (category || '').toLowerCase();
+  const name = (shopName || '').toLowerCase();
+
+  if (cat.includes('veg') || cat.includes('groc') || name.includes('groc') || name.includes('veg') || name.includes('mart') || name.includes('supermarket')) {
+    return 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80';
+  }
+  if (cat.includes('bake') || name.includes('bake') || name.includes('cake') || name.includes('sweet')) {
+    return 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80';
+  }
+  if (cat.includes('pharm') || cat.includes('health') || cat.includes('med') || name.includes('pharmacy') || name.includes('care')) {
+    return 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?auto=format&fit=crop&w=1200&q=80';
+  }
+  if (cat.includes('elect') || cat.includes('tech') || cat.includes('gadget') || name.includes('tech')) {
+    return 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=1200&q=80';
+  }
+  if (cat.includes('food') || cat.includes('eat') || cat.includes('restaurant') || cat.includes('cafe')) {
+    return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80';
+  }
+  if (cat.includes('home') || cat.includes('decor')) {
+    return 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&w=1200&q=80';
+};
+
+const defaultShopImage = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80";
 
 export default function ShopDetails() {
   const navigate = useNavigate();
@@ -241,7 +266,15 @@ export default function ShopDetails() {
         <div className="px-6">
 
 <div className="relative w-full h-[300px] overflow-hidden">
-<img alt={shop.name} className="shop-cover-image w-full h-full object-cover" src={getImageUrl(shop.coverImageUrl || shop.imageUrl || shop.shopImageUrl || shop.image, defaultShopImage)} onError={(e) => { e.target.onerror = null; e.target.src = defaultShopImage; }}/>
+<img 
+  alt={shop.name} 
+  className="shop-cover-image w-full h-full object-cover" 
+  src={getImageUrl(shop.coverImageUrl || shop.imageUrl || shop.shopImageUrl || shop.image, getShopCoverFallback(shop.category, shop.name))} 
+  onError={(e) => { 
+    e.target.onerror = null; 
+    e.target.src = getShopCoverFallback(shop?.category, shop?.name); 
+  }}
+/>
 <div className="absolute inset-0 bg-gradient-to-t from-on-surface/60 to-transparent"></div>
 <div className="absolute bottom-md left-md right-md text-on-primary">
 <div className="flex items-center gap-xs mb-xs">
@@ -375,7 +408,15 @@ export default function ShopDetails() {
     {products.map(item => (
     <div key={item.id} id={`product-${item.id || item._id}`} onClick={() => navigate(`/product/${item.id}`)} className="bg-white p-sm rounded-xl shadow-sm flex gap-md items-center group hover:shadow-md transition-all duration-300 cursor-pointer border border-transparent">
     <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-    <img alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={item.image || 'https://placehold.co/150'}/>
+    <img 
+      alt={item.name} 
+      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+      src={getImageUrl(item.image || item.product_image || item.imageUrl, 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80')}
+      onError={(e) => {
+        e.target.onerror = null;
+        e.target.src = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=300&q=80';
+      }}
+    />
     </div>
     <div className="flex-grow">
     <h4 className="font-title-md text-body-lg font-semibold line-clamp-2">{item.name}</h4>
