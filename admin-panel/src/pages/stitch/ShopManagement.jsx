@@ -165,7 +165,7 @@ export default function ShopManagement() {
 <button onClick={() => setFilterCat('Home Decor')} className={`px-md py-xs rounded-full font-label-sm flex items-center gap-xs ${filterCat === 'Home Decor' ? 'bg-primary text-on-primary' : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors'}`}>
                     Home Decor
                 </button>
-<button onClick={() => window.alert('Action successful')} className="px-md py-xs border border-border-gray text-on-surface-variant rounded-full font-label-sm flex items-center gap-xs">
+<button className="px-md py-xs border border-border-gray text-on-surface-variant rounded-full font-label-sm flex items-center gap-xs hover:bg-surface-container transition-colors">
 <span className="material-symbols-outlined text-[18px]">filter_list</span> More Filters
                 </button>
 </div>
