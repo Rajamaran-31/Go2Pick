@@ -183,7 +183,8 @@ async def notify_new_order(shopkeeper_user_id, order_id: str, customer_name: str
 async def notify_order_status(customer_id, status: str, shop_name: str) -> None:
     status_messages = {
         "accepted": f"Your order from {shop_name} has been accepted!",
-        "preparing": f"Your order from {shop_name} is being prepared.",
+        "preparing": f"Your order from {shop_name} is being packed.",
+        "packing": f"Your order from {shop_name} is being packed.",
         "ready_for_pickup": f"Your order from {shop_name} is ready for pickup!",
         "completed": f"Your order from {shop_name} has been successfully picked up and completed. Enjoy!",
         "cancelled": f"Your order from {shop_name} has been cancelled.",
@@ -191,7 +192,8 @@ async def notify_order_status(customer_id, status: str, shop_name: str) -> None:
     message = status_messages.get(status, f"Order status updated to: {status}")
     title_map = {
         "accepted": "Order Accepted ✅",
-        "preparing": "Order Being Prepared 🍳",
+        "preparing": "Order Being Packed 📦",
+        "packing": "Order Being Packed 📦",
         "ready_for_pickup": "Ready for Pickup! 📦",
         "completed": "Order Completed 🎉",
         "cancelled": "Order Cancelled ❌",

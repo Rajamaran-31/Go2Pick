@@ -70,9 +70,9 @@ export default function ShopkeeperOrders() {
       statusLabel = 'New Order';
       statusBadge = 'bg-secondary-fixed text-on-secondary-fixed';
       borderClass = 'border-marketplace-orange shadow-sm';
-    } else if (backendStatus === 'accepted' || backendStatus === 'preparing') {
+    } else if (backendStatus === 'accepted' || backendStatus === 'preparing' || backendStatus === 'packing') {
       status = 'Active';
-      statusLabel = 'Preparing';
+      statusLabel = 'Packing';
       statusBadge = 'bg-surface-container text-trust-blue';
       borderClass = 'border-trust-blue shadow-sm';
     } else if (backendStatus === 'ready_for_pickup') {
@@ -224,7 +224,7 @@ export default function ShopkeeperOrders() {
           </div>
         </div>
       );
-    } else if (order.statusLabel === 'Preparing') {
+    } else if (order.statusLabel === 'Packing' || order.statusLabel === 'Preparing') {
       return (
         <div className="flex flex-col gap-xs">
           <button className="w-full py-sm bg-trust-blue text-on-primary rounded-lg font-label-sm hover:brightness-110 active:scale-[0.98] transition-all" onClick={() => markReady(order.id)}>Mark as Ready</button>

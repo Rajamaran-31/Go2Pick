@@ -845,8 +845,9 @@ async def shopkeeper_orders(
 
 PICKUP_TRANSITIONS = {
     "placed": ["accepted", "cancelled"],
-    "accepted": ["preparing", "cancelled"],
+    "accepted": ["preparing", "packing", "cancelled"],
     "preparing": ["ready_for_pickup", "cancelled"],
+    "packing": ["ready_for_pickup", "cancelled"],
     "ready_for_pickup": [],  # Completed must be done via verify-code endpoint!
 }
 

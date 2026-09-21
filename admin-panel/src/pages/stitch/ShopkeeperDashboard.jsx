@@ -12,8 +12,8 @@ const mapApiOrderToDashboard = (apiOrder) => {
   if (backendStatus === 'placed') {
     status = 'Pending';
     statusClass = 'bg-trust-blue/10 text-trust-blue border-trust-blue/20';
-  } else if (backendStatus === 'accepted' || backendStatus === 'preparing') {
-    status = 'Preparing';
+  } else if (backendStatus === 'accepted' || backendStatus === 'preparing' || backendStatus === 'packing') {
+    status = 'Packing';
     statusClass = 'bg-warning-amber/10 text-warning-amber border-warning-amber/20';
   } else if (backendStatus === 'ready_for_pickup') {
     status = 'Ready';

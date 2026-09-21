@@ -15,7 +15,8 @@ export default function CustomerOrderHistory() {
   const mapStatus = (status) => {
     switch (status?.toLowerCase()) {
       case 'placed': return 'Placed';
-      case 'preparing': return 'Preparing';
+      case 'packing':
+      case 'preparing': return 'Packing';
       case 'ready_for_pickup': return 'Ready for Pickup';
       case 'picked_up': return 'Picked Up';
       case 'completed': return 'Completed';
@@ -59,7 +60,7 @@ export default function CustomerOrderHistory() {
     if (!matchesSearch) return false;
     
     if (activeFilter === 'All Orders') return true;
-    if (activeFilter === 'Active' && (order.status === 'Placed' || order.status === 'Preparing' || order.status === 'Ready for Pickup' || order.status === 'Picked Up')) return true;
+    if (activeFilter === 'Active' && (order.status === 'Placed' || order.status === 'Packing' || order.status === 'Preparing' || order.status === 'Ready for Pickup' || order.status === 'Picked Up')) return true;
     if (activeFilter === 'Completed' && (order.status === 'Completed' || order.status === 'Delivered')) return true;
     if (activeFilter === 'Canceled' && order.status === 'Canceled') return true;
     return false;
@@ -104,7 +105,7 @@ export default function CustomerOrderHistory() {
     <div className="flex justify-between items-start">
     <h3 className="font-title-md text-title-md text-on-background">{order.shop}</h3>
     <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${
-      order.status === 'Preparing' || order.status === 'Placed' ? 'bg-surface-container text-primary' : 
+      order.status === 'Packing' || order.status === 'Preparing' || order.status === 'Placed' ? 'bg-surface-container text-primary' : 
       order.status === 'Ready for Pickup' ? 'bg-success-green/10 text-success-green' : 
       order.status === 'Completed' || order.status === 'Delivered' ? 'bg-surface-dim/40 text-on-surface-variant' : 
       'bg-error-red/10 text-error-red'

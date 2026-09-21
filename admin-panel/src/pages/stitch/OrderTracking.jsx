@@ -90,13 +90,14 @@ export default function OrderTracking() {
   const status = displayOrder.orderStatus?.toLowerCase() || 'placed';
 
   const getStepState = (stepIndex) => {
-    // stepIndex: 1 = Placed, 2 = Preparing, 3 = Ready for Pickup, 4 = Picked Up / Completed
+    // stepIndex: 1 = Placed, 2 = Packing, 3 = Ready for Pickup, 4 = Picked Up / Completed
     if (status === 'cancelled' || status === 'canceled') {
       return 'canceled';
     }
     
+    const normalizedStatus = status === 'packing' ? 'preparing' : status;
     const statusOrder = ['placed', 'preparing', 'ready_for_pickup', 'picked_up', 'completed', 'delivered'];
-    const currentIdx = statusOrder.indexOf(status);
+    const currentIdx = statusOrder.indexOf(normalizedStatus);
     
     const stepTargetIdx = stepIndex - 1;
     if (stepIndex === 4) {
@@ -229,7 +230,7 @@ export default function OrderTracking() {
                   {status === 'cancelled' || status === 'canceled' ? 'Canceled' :
                    status === 'completed' || status === 'delivered' ? 'Completed' :
                    status === 'ready_for_pickup' ? 'Ready for Pickup' :
-                   status === 'preparing' ? 'Preparing' : 'Placed'}
+                   (status === 'preparing' || status === 'packing') ? 'Packing' : 'Placed'}
                 </span>
               </div>
             </div>
@@ -248,13 +249,13 @@ export default function OrderTracking() {
                 "Your order has been received successfully"
               )}
 
-              {/* Step 2: Preparing */}
+              {/* Step 2: Packing */}
               {renderStep(
                 2, 
-                "Preparing", 
-                "The kitchen is preparing your ordered items", 
-                "Waiting for preparation to start", 
-                "Preparation complete"
+                "Packing", 
+                "The store is packing your ordered items", 
+                "Waiting for packing to start", 
+                "Packing complete"
               )}
 
               {/* Step 3: Ready for Pickup */}

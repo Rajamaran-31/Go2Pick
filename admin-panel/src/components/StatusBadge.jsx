@@ -7,6 +7,7 @@ export default function StatusBadge({ status }) {
     ready: { bg: '#DBEAFE', color: '#2563EB' },
     accepted: { bg: '#DBEAFE', color: '#2563EB' },
     preparing: { bg: '#E0E7FF', color: '#4F46E5' },
+    packing: { bg: '#E0E7FF', color: '#4F46E5' },
     rejected: { bg: '#FEE2E2', color: '#DC2626' },
     blocked: { bg: '#FEE2E2', color: '#DC2626' },
     cancelled: { bg: '#FEE2E2', color: '#DC2626' },
