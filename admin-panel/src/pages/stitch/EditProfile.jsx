@@ -1,11 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api, { API_BASE, getImageUrl } from '../../services/api';
 
 const DEFAULT_AVATAR = "https://lh3.googleusercontent.com/aida-public/AB6AXuAZG6KrovJxIHiZxn6FYi-NfLd92btdlcT_SjW3u-uWhD0duAmbzP1cFu05cnYpo5wi36l6mdjCFFvswhoDyez2YvP65n-ZpsVHqqDBdgr0N5BsOzM90bT4PTGam_rSTXFnCoBsMAvGf2sXYDKi1HTx5TMBHRh5QGP5TOkTAcc3hNQQlrXFNFb8SIJpNRL5AhkqEnve_A4Eoc3aWRZkdzEEbLEvbiBWc0we4WkkeKi-sITtbnuvyDgPbij3uMw-_dqyZqOpdxyGh7x9";
 
+const compressImage = (file, maxWidth = 360, maxHeight = 360, quality = 0.85) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function EditProfile() {
   const navigate = useNavigate();
+  const { user, setUser, refreshUser } = useAuth();
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -15,6 +55,8 @@ export default function EditProfile() {
   });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     api.get('/api/auth/me')
@@ -28,9 +70,19 @@ export default function EditProfile() {
           });
         }
       })
-      .catch(err => console.error("Error loading profile details:", err))
+      .catch(err => {
+        console.error("Error loading profile details:", err);
+        if (user) {
+          setFormData({
+            name: user.fullName || user.name || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            avatar: user.profileImage || user.avatar || ''
+          });
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -41,40 +93,78 @@ export default function EditProfile() {
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    const uploadData = new FormData();
-    uploadData.append('file', file);
+    setErrorMessage('');
 
     try {
-      const res = await api.post('/api/uploads/profile-image', uploadData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data && res.data.url) {
-        setFormData(prev => ({ ...prev, avatar: res.data.url }));
+      // 1. Instantly compress client-side for rapid preview & guaranteed persistence
+      const compressedDataUrl = await compressImage(file);
+      if (compressedDataUrl) {
+        setFormData(prev => ({ ...prev, avatar: compressedDataUrl }));
+      }
+
+      // 2. Also send to backend upload endpoint
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+
+      try {
+        const res = await api.post('/api/uploads/profile-image', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (res.data && res.data.url) {
+          setFormData(prev => ({ ...prev, avatar: res.data.url }));
+        }
+      } catch (backendUploadErr) {
+        console.warn("Backend upload failed, using local compressed image:", backendUploadErr);
+        // The compressedDataUrl is already set in state, so we don't throw an error!
       }
     } catch (err) {
-      console.error("Failed to upload profile image:", err);
-      window.alert("Failed to upload profile image: " + (err.response?.data?.detail || err.message));
+      console.error("Failed to process profile image:", err);
+      setErrorMessage("Could not process image. Please choose another photo.");
     } finally {
       setUploading(false);
+      if (e.target) e.target.value = '';
     }
   };
 
   const handleSave = async () => {
+    setErrorMessage('');
     try {
-      await api.put('/api/auth/profile', {
+      const res = await api.put('/api/auth/profile', {
         name: formData.name,
+        fullName: formData.name,
         phone: formData.phone,
         avatar: formData.avatar
       });
-      window.alert('Profile updated successfully!');
-      navigate('/profile');
+
+      const updatedUser = res.data?.user || {
+        ...(user || {}),
+        fullName: formData.name,
+        name: formData.name,
+        phone: formData.phone,
+        profileImage: formData.avatar,
+        avatar: formData.avatar
+      };
+
+      if (setUser) setUser(updatedUser);
+      try {
+        localStorage.setItem('go2pick_user', JSON.stringify(updatedUser));
+      } catch (e) {}
+
+      if (refreshUser) {
+        refreshUser().catch(() => {});
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => {
+        navigate('/profile');
+      }, 700);
     } catch (err) {
       console.error("Failed to update profile:", err);
-      window.alert(err.response?.data?.detail || 'Failed to update profile');
+      setErrorMessage(err.response?.data?.detail || 'Failed to update profile. Please try again.');
     }
   };
 
@@ -114,11 +204,15 @@ export default function EditProfile() {
               src={profileImageSrc} 
               onError={(e) => { e.target.onerror = null; e.target.src = DEFAULT_AVATAR; }}
             />
-            <button className="absolute bottom-0 right-0 bg-primary text-on-primary w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+            <button 
+              type="button" 
+              onClick={(e) => { e.stopPropagation(); handlePhotoClick(); }}
+              className="absolute bottom-0 right-0 bg-primary text-on-primary w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow"
+            >
               <span className="material-symbols-outlined text-[18px]">photo_camera</span>
             </button>
           </div>
-          <p onClick={handlePhotoClick} className="font-label-md text-primary cursor-pointer hover:underline">Change Photo</p>
+          <p onClick={handlePhotoClick} className="font-label-md text-primary cursor-pointer hover:underline font-semibold">Change Photo</p>
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -127,6 +221,20 @@ export default function EditProfile() {
             className="hidden" 
           />
         </div>
+
+        {errorMessage && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 text-red-700 dark:text-red-300 rounded-xl text-sm flex items-center gap-2">
+            <span className="material-symbols-outlined text-red-500 text-base">error</span>
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-center gap-2">
+            <span className="material-symbols-outlined text-emerald-500 text-base">check_circle</span>
+            <span>Profile updated successfully! Redirecting...</span>
+          </div>
+        )}
 
         <div className="space-y-md">
           <div>
@@ -161,8 +269,13 @@ export default function EditProfile() {
           </div>
         </div>
 
-        <button onClick={handleSave} className="w-full py-md bg-primary text-on-primary rounded-full font-label-lg mt-xl active:scale-95 transition-transform shadow-sm">
-          Save Changes
+        <button 
+          type="button"
+          onClick={handleSave} 
+          disabled={uploading}
+          className="w-full py-md bg-primary text-on-primary rounded-full font-label-lg mt-xl active:scale-95 transition-transform shadow-sm disabled:opacity-50"
+        >
+          {uploading ? 'Processing Photo...' : 'Save Changes'}
         </button>
       </main>
     </div>

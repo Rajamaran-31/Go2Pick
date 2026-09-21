@@ -21,6 +21,9 @@ def resolve_static_url(url: Optional[str]) -> str:
     
     settings = get_settings()
     backend_url = getattr(settings, "BACKEND_URL", "http://localhost:8000").rstrip('/')
+    is_vercel = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if is_vercel and ("localhost" in backend_url or not backend_url):
+        backend_url = "https://go2pick-backend.vercel.app"
     
     if url_str.startswith("/"):
         return f"{backend_url}{url_str}"

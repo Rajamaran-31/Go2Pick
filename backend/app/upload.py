@@ -6,7 +6,11 @@ from pathlib import Path
 from fastapi import UploadFile, HTTPException
 
 UPLOAD_DIR = Path("static/uploads")
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
+    "image/pjpeg", "image/x-png", "image/bmp", "image/svg+xml",
+    "application/octet-stream"
+}
 ALLOWED_IMPORT_TYPES = {
     "text/csv",
     "application/vnd.ms-excel",
@@ -16,21 +20,48 @@ MAX_FILE_SIZE_MB = 10
 
 
 def _save_local(file: UploadFile, subfolder: str) -> str:
-    """Save file locally and return its URL path (fallback to /tmp for serverless)."""
+    """Save file locally and return its URL path (fallback to base64 data URL on serverless)."""
+    import base64
     ext = Path(file.filename or "file").suffix.lower()
     filename = f"{uuid.uuid4().hex}{ext}"
+
+    # On Vercel / serverless, return data URL directly so image is permanent and never 404s
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if is_serverless:
+        try:
+            file.file.seek(0)
+            content = file.file.read()
+            if content and len(content) <= 5 * 1024 * 1024:
+                mime = file.content_type if file.content_type and "image" in file.content_type else "image/jpeg"
+                b64 = base64.b64encode(content).decode("utf-8")
+                return f"data:{mime};base64,{b64}"
+        except Exception as be:
+            print(f"[WARN] Serverless base64 encoding fallback error: {be}")
+
     try:
         folder = UPLOAD_DIR / subfolder
         folder.mkdir(parents=True, exist_ok=True)
         dest = folder / filename
+        file.file.seek(0)
         with open(dest, "wb") as f:
             shutil.copyfileobj(file.file, f)
         return f"/static/uploads/{subfolder}/{filename}"
     except Exception as e:
-        print(f"Serverless local save warning ({e}), saving to /tmp...")
+        print(f"Serverless local save warning ({e}), falling back to base64 or /tmp...")
+        try:
+            file.file.seek(0)
+            content = file.file.read()
+            if content:
+                mime = file.content_type if file.content_type and "image" in file.content_type else "image/jpeg"
+                b64 = base64.b64encode(content).decode("utf-8")
+                return f"data:{mime};base64,{b64}"
+        except Exception:
+            pass
+
         tmp_folder = Path("/tmp/uploads") / subfolder
         tmp_folder.mkdir(parents=True, exist_ok=True)
         dest = tmp_folder / filename
+        file.file.seek(0)
         with open(dest, "wb") as f:
             shutil.copyfileobj(file.file, f)
         return f"/static/uploads/{subfolder}/{filename}"
