@@ -51,13 +51,23 @@ class FrontendCreateOrderRequest(BaseModel):
 def _shop_response(shop: dict) -> dict:
     logo_val = shop.get("image") or shop.get("imageUrl") or shop.get("shopImageUrl") or shop.get("logo") or shop.get("logoUrl") or ""
     cover_val = shop.get("coverImageUrl") or shop.get("coverImage") or shop.get("banner") or shop.get("bannerImage") or logo_val
+    try:
+        raw_rating = shop.get("rating", 0.0)
+        rating_val = float(raw_rating) if raw_rating is not None else 0.0
+    except (ValueError, TypeError):
+        rating_val = 0.0
+
+    created_at = shop.get("createdAt")
+    if hasattr(created_at, "isoformat"):
+        created_at = created_at.isoformat()
+
     return {
         "id": str(shop.get("_id", shop.get("id", ""))),
         "name": shop.get("name", shop.get("shopName", "")),
         "shopName": shop.get("shopName", shop.get("name", "")),
         "category": shop.get("category", ""),
         "address": shop.get("address", ""),
-        "phone": shop.get("phone"),
+        "phone": shop.get("phone") or shop.get("businessPhone", ""),
         "image": resolve_static_url(logo_val),
         "imageUrl": resolve_static_url(logo_val),
         "coverImageUrl": resolve_static_url(cover_val),
@@ -65,12 +75,12 @@ def _shop_response(shop: dict) -> dict:
         "isActive": shop.get("isActive", shop.get("is_active", True)),
         "is_active": shop.get("is_active", shop.get("isActive", True)),
         "isApproved": shop.get("isApproved", shop.get("is_shop_approved", True)),
-        "rating": shop.get("rating", 0.0),
-        "ratingCount": shop.get("ratingCount", 0),
-        "totalOrders": shop.get("totalOrders", shop.get("total_orders", 0)),
+        "rating": rating_val,
+        "ratingCount": int(shop.get("ratingCount", 0) or 0),
+        "totalOrders": int(shop.get("totalOrders", shop.get("total_orders", 0)) or 0),
         "closing_time": shop.get("closing_time", "21:00"),
         "description": shop.get("description", ""),
-        "createdAt": shop.get("createdAt"),
+        "createdAt": created_at,
         "latitude": shop.get("latitude"),
         "longitude": shop.get("longitude"),
     }
@@ -256,32 +266,43 @@ async def list_shops(
     result = []
     
     for doc in shops_ref:
-        s = doc.to_dict()
-        
-        status = s.get("status", "active")
-        is_active = s.get("isActive", s.get("is_active", True))
-        is_approved = s.get("isApproved", s.get("is_approved", True))
-        
-        if status != "active" or is_active == False or is_approved != True:
-            continue
-
-        if category and category.lower() not in s.get("category", "").lower():
-            continue
-        if city and city.lower() not in s.get("city", "").lower():
-            continue
-        if search:
-            search_lower = search.lower()
-            if (search_lower not in s.get("name", "").lower() and
-                search_lower not in s.get("shopName", "").lower() and
-                search_lower not in s.get("category", "").lower()):
+        try:
+            s = doc.to_dict() if hasattr(doc, "to_dict") else dict(doc)
+            
+            status = s.get("status", "active")
+            is_active = s.get("isActive", s.get("is_active", True))
+            is_approved = s.get("isApproved", s.get("is_approved", True))
+            
+            if status != "active" or is_active is False or is_approved is False:
                 continue
 
-        s["_id"] = doc.id
-        result.append(_shop_response(s))
+            if category and category.lower() not in s.get("category", "").lower():
+                continue
+            if city and city.lower() not in s.get("city", "").lower():
+                continue
+            if search:
+                search_lower = search.lower()
+                if (search_lower not in s.get("name", "").lower() and
+                    search_lower not in s.get("shopName", "").lower() and
+                    search_lower not in s.get("category", "").lower()):
+                    continue
+
+            s["_id"] = getattr(doc, "id", str(s.get("_id", s.get("id", ""))))
+            result.append(_shop_response(s))
+        except Exception as err:
+            print(f"WARN [Customer Shops API] Skipping shop {getattr(doc, 'id', 'unknown')}: {err}")
 
     # Sort by rating descending
     result.sort(key=lambda x: x.get("rating", 0.0), reverse=True)
-    paginated = result[skip : skip + limit]
+    try:
+        skip_int = int(skip) if not hasattr(skip, 'default') else int(skip.default)
+    except Exception:
+        skip_int = 0
+    try:
+        limit_int = int(limit) if not hasattr(limit, 'default') else int(limit.default)
+    except Exception:
+        limit_int = 50
+    paginated = result[skip_int : skip_int + limit_int]
     
     print(f"DEBUG [Customer Shops API] number of shops found: {len(result)}")
     print(f"DEBUG [Customer Shops API] shop ids returned: {[s['id'] for s in paginated]}")
@@ -299,14 +320,17 @@ async def get_featured_shops():
     result = []
     
     for doc in shops_ref:
-        s = doc.to_dict()
-        status = s.get("status", "active")
-        is_active = s.get("isActive", s.get("is_active", True))
-        is_approved = s.get("isApproved", s.get("is_approved", True))
-        
-        if status == "active" and is_active != False and is_approved == True:
-            s["_id"] = doc.id
-            result.append(_shop_response(s))
+        try:
+            s = doc.to_dict() if hasattr(doc, "to_dict") else dict(doc)
+            status = s.get("status", "active")
+            is_active = s.get("isActive", s.get("is_active", True))
+            is_approved = s.get("isApproved", s.get("is_approved", True))
+            
+            if status == "active" and is_active is not False and is_approved is not False:
+                s["_id"] = getattr(doc, "id", str(s.get("_id", s.get("id", ""))))
+                result.append(_shop_response(s))
+        except Exception as err:
+            print(f"WARN [Customer Featured Shops] Skipping shop {getattr(doc, 'id', 'unknown')}: {err}")
 
     result.sort(key=lambda x: x.get("rating", 0.0), reverse=True)
     top_featured = result[:10]
