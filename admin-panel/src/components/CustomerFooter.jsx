@@ -41,7 +41,7 @@ export default function CustomerFooter() {
         {/* Contact Info */}
         <div className="flex flex-col space-y-3">
           <h4 className="text-white font-bold text-sm tracking-wider uppercase">Contact</h4>
-          <span className="text-sm">Email: support@go2pick.com</span>
+          <a href="mailto:rajamaran32@gmail.com" className="text-sm hover:text-white transition-colors">Email: rajamaran32@gmail.com</a>
           <span className="text-sm">Location: Tamil Nadu, India</span>
           <div className="flex space-x-3 pt-2 text-slate-500 text-lg">
             <span className="material-symbols-outlined cursor-pointer hover:text-white transition-colors">public</span>

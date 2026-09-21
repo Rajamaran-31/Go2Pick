@@ -1615,7 +1615,7 @@ async def get_platform_settings_admin(current_user: dict = Depends(require_super
             "commissionPercentage": 12.5,
             "flatProcessingFee": 0.50,
             "merchantPayoutDelay": "T+2",
-            "supportEmail": "support@go2pick.com",
+            "supportEmail": "rajamaran32@gmail.com",
             "maintenanceMode": False
         }
     }
