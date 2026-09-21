@@ -68,32 +68,25 @@ export default function ShopkeeperDashboard() {
     pendingOrders: 0
   });
   const [weeklySales, setWeeklySales] = useState([10, 10, 10, 10, 10, 10, 10]); // Mon to Sun heights in %
-  const [weeklySalesData, setWeeklySalesData] = useState([
-    { label: 'Mon', revenue: 0, orders: 0, height: 8 },
-    { label: 'Tue', revenue: 0, orders: 0, height: 8 },
-    { label: 'Wed', revenue: 0, orders: 0, height: 8 },
-    { label: 'Thu', revenue: 0, orders: 0, height: 8 },
-    { label: 'Fri', revenue: 0, orders: 0, height: 8 },
-    { label: 'Sat', revenue: 0, orders: 0, height: 8 },
-    { label: 'Sun', revenue: 0, orders: 0, height: 8 },
-  ]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashboardRes, ordersRes, shopRes, reportsRes] = await Promise.all([
-          api.get('/api/shopkeeper/dashboard').catch(() => ({ data: null })),
-          api.get('/api/shopkeeper/orders?limit=100').catch(() => ({ data: null })),
-          api.get('/api/shopkeeper/my-shop').catch(() => ({ data: null })),
-          api.get('/api/shopkeeper/reports').catch(() => ({ data: null }))
+        const [dashboardRes, ordersRes, shopRes] = await Promise.all([
+          api.get('/api/shopkeeper/dashboard'),
+          api.get('/api/shopkeeper/orders?limit=100'),
+          api.get('/api/shopkeeper/my-shop')
         ]);
 
-        if (shopRes?.data && shopRes.data.success) {
+        if (shopRes.data && shopRes.data.success) {
           const shopData = shopRes.data.shop || shopRes.data;
+          console.log("DEBUG [ShopkeeperDashboard] my-shop API response:", shopRes.data);
+          console.log("DEBUG [ShopkeeperDashboard] saved shop imageUrl:", shopData?.imageUrl);
+          console.log("DEBUG [ShopkeeperDashboard] saved coverImageUrl:", shopData?.coverImageUrl);
           setShop(shopData);
         }
 
-        if (dashboardRes?.data && dashboardRes.data.success) {
+        if (dashboardRes.data && dashboardRes.data.success) {
           const d = dashboardRes.data;
           setStats({
             revenue: `₹${parseFloat(d.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -103,53 +96,27 @@ export default function ShopkeeperDashboard() {
           });
         }
 
-        if (ordersRes?.data && ordersRes.data.success) {
+        if (ordersRes.data && ordersRes.data.success) {
           const allOrders = ordersRes.data.orders || [];
           const mapped = allOrders.map(mapApiOrderToDashboard);
           setOrders(mapped.slice(0, 5));
-        }
 
-        // Handle weekly sales chart data
-        if (reportsRes?.data?.dailyBreakdown && Array.isArray(reportsRes.data.dailyBreakdown) && reportsRes.data.dailyBreakdown.length > 0) {
-          const breakdown = reportsRes.data.dailyBreakdown;
-          const maxRev = Math.max(...breakdown.map(d => Number(d.revenue) || 0));
-          const formatted = breakdown.map(d => {
-            const rev = Number(d.revenue) || 0;
-            return {
-              label: d.label,
-              date: d.date,
-              revenue: rev,
-              orders: Number(d.orders) || 0,
-              height: maxRev > 0 ? Math.max(8, Math.round((rev / maxRev) * 100)) : 8
-            };
-          });
-          setWeeklySalesData(formatted);
-          setWeeklySales(formatted.map(f => f.height));
-        } else if (ordersRes?.data?.orders) {
-          const allOrders = ordersRes.data.orders || [];
-          const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          // Calculate weekly sales chart heights
           const salesByDay = [0, 0, 0, 0, 0, 0, 0];
-          const ordersByDay = [0, 0, 0, 0, 0, 0, 0];
           allOrders.forEach(o => {
-            if (o.orderStatus !== 'cancelled' && o.createdAt) {
+            if (o.orderStatus !== 'cancelled') {
               const date = new Date(o.createdAt);
-              if (!isNaN(date.getTime())) {
-                const day = date.getDay();
-                const index = day === 0 ? 6 : day - 1; // Mon is 0, Sun is 6
-                salesByDay[index] += parseFloat(o.totalAmount || 0);
-                ordersByDay[index] += 1;
-              }
+              const day = date.getDay();
+              const index = day === 0 ? 6 : day - 1; // Mon is 0, Sun is 6
+              salesByDay[index] += parseFloat(o.totalAmount || 0);
             }
           });
           const maxSales = Math.max(...salesByDay);
-          const formatted = dayLabels.map((label, idx) => ({
-            label,
-            revenue: salesByDay[idx],
-            orders: ordersByDay[idx],
-            height: maxSales > 0 ? Math.max(8, Math.round((salesByDay[idx] / maxSales) * 100)) : 8
-          }));
-          setWeeklySalesData(formatted);
-          setWeeklySales(formatted.map(f => f.height));
+          const heights = salesByDay.map(val => {
+            if (maxSales === 0) return 10;
+            return Math.max(10, Math.round((val / maxSales) * 100));
+          });
+          setWeeklySales(heights);
         }
       } catch (err) {
         console.error("Failed to fetch shopkeeper dashboard data:", err);
@@ -282,62 +249,46 @@ export default function ShopkeeperDashboard() {
 
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg">
 
-<section className="cursor-pointer lg:col-span-8 bg-surface-container-lowest p-lg rounded-xl shadow-[0_4px_6px_-1px_rgb(0_0_0/0.05)] border border-border-gray hover:border-marketplace-orange/30 transition-all flex flex-col justify-between" onClick={() => navigate('/shopkeeper/reports')}>
-<div className="flex flex-wrap justify-between items-center gap-2 mb-md">
-  <div>
-    <h3 className="font-title-md text-title-md font-bold text-on-surface">Sales this Week</h3>
-    <p className="font-label-sm text-xs text-on-surface-variant">Tap to view full reports & analytics</p>
-  </div>
-  <div className="flex items-center gap-2 font-label-sm text-xs text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-full border border-border-gray">
-    <span className="w-2.5 h-2.5 bg-marketplace-orange rounded-full animate-pulse"></span>
-    <span className="font-medium text-marketplace-orange">Current Week</span>
-  </div>
+<section className="cursor-pointer lg:col-span-8 bg-surface-container-lowest p-lg rounded-xl shadow-[0_4px_6px_-1px_rgb(0_0_0/0.05)]" onClick={() => navigate('/shopkeeper/reports')}>
+<div className="flex justify-between items-center mb-xl">
+<h3 className="font-title-md text-title-md font-bold">Sales this Week</h3>
+<div className="flex gap-xs">
+<div className="flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant">
+<span className="w-3 h-3 bg-marketplace-orange rounded-full"></span>
+                            Current Week
+                        </div>
+</div>
 </div>
 
-{/* Chart Area */}
-<div className="relative h-52 sm:h-60 md:h-64 w-full pt-6 pb-2">
-  {/* Background Grid Guidelines */}
-  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-15 pb-7 pt-2">
-    <div className="border-b border-dashed border-on-surface w-full"></div>
-    <div className="border-b border-dashed border-on-surface w-full"></div>
-    <div className="border-b border-dashed border-on-surface w-full"></div>
-    <div className="border-b border-solid border-on-surface w-full"></div>
-  </div>
-
-  {/* Responsive Bars Container */}
-  <div className="relative h-full w-full flex items-end justify-between gap-1 sm:gap-3 px-1 sm:px-2 z-10">
-    {weeklySalesData.map((day, idx) => {
-      const hasRevenue = (day.revenue || 0) > 0;
-      return (
-        <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center group relative min-w-0">
-          {/* Tooltip Popup on Hover / Focus */}
-          <div className="opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none absolute -top-11 z-30 bg-slate-900 text-white text-[10px] sm:text-xs py-1 px-2.5 rounded-lg shadow-xl whitespace-nowrap flex flex-col items-center">
-            <span className="font-bold text-amber-400">₹{Number(day.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
-            <span className="text-slate-300 text-[9px]">{day.orders} order{day.orders === 1 ? '' : 's'}</span>
-          </div>
-
-          {/* Bar Track & Fill */}
-          <div className="w-full flex-1 flex items-end justify-center pb-2">
-            <div 
-              className={`w-full max-w-[28px] sm:max-w-[36px] md:max-w-[44px] rounded-t-md sm:rounded-t-lg transition-all duration-500 shadow-sm ${
-                hasRevenue 
-                  ? 'bg-gradient-to-t from-marketplace-orange to-amber-500 group-hover:brightness-110 shadow-marketplace-orange/20' 
-                  : 'bg-marketplace-orange/20 group-hover:bg-marketplace-orange/35'
-              }`}
-              style={{ height: `${Math.max(6, day.height)}%` }}
-            />
-          </div>
-
-          {/* Day Label */}
-          <span className={`text-[10px] sm:text-[11px] font-semibold tracking-wide uppercase transition-colors pt-1 ${
-            hasRevenue ? 'text-marketplace-orange font-bold' : 'text-slate-400 group-hover:text-slate-600'
-          }`}>
-            {day.label}
-          </span>
-        </div>
-      );
-    })}
-  </div>
+<div className="flex items-end justify-between h-48 md:h-64 pt-md">
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange/20 rounded-t-lg transition-all hover:h-[45%]" style={{ height: `${weeklySales[0]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Mon</span>
+</div>
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange/40 rounded-t-lg transition-all hover:h-[70%]" style={{ height: `${weeklySales[1]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Tue</span>
+</div>
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange/60 rounded-t-lg transition-all hover:h-[60%]" style={{ height: `${weeklySales[2]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Wed</span>
+</div>
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange/80 rounded-t-lg transition-all hover:h-[90%]" style={{ height: `${weeklySales[3]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Thu</span>
+</div>
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange rounded-t-lg transition-all hover:opacity-80" style={{ height: `${weeklySales[4]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Fri</span>
+</div>
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange/50 rounded-t-lg transition-all hover:h-[50%]" style={{ height: `${weeklySales[5]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Sat</span>
+</div>
+<div className="flex flex-col items-center gap-xs w-full">
+<div className="w-2/3 bg-marketplace-orange/30 rounded-t-lg transition-all hover:h-[35%]" style={{ height: `${weeklySales[6]}%` }}></div>
+<span className="font-label-sm text-[10px] uppercase text-outline">Sun</span>
+</div>
 </div>
 </section>
 

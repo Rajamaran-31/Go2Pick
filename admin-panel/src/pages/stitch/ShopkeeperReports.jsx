@@ -15,9 +15,7 @@ export default function ShopkeeperReports() {
   const [products, setProducts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [reportData, setReportData] = useState({
-    today: { total: 0, count: 0 },
     thisWeek: { total: 0, count: 0 },
-    thisMonth: { total: 0, count: 0 },
     dailyBreakdown: []
   });
 
@@ -35,24 +33,9 @@ export default function ShopkeeperReports() {
     }).catch(err => console.error("API Error:", err));
   }, []);
 
-  // Generate fallback 7 days if dailyBreakdown is not yet loaded or empty
-  const defaultBreakdown = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(label => ({
-    label,
-    revenue: 0,
-    orders: 0
-  }));
-
-  const chartDays = (reportData.dailyBreakdown && reportData.dailyBreakdown.length > 0)
-    ? reportData.dailyBreakdown
-    : defaultBreakdown;
-
-  const maxRevenue = Math.max(...chartDays.map(d => Number(d.revenue) || 0), 0);
-
-  const activeStat = activeTab === 'Daily'
-    ? (reportData.today || { total: 0, count: 0 })
-    : activeTab === 'Monthly'
-    ? (reportData.thisMonth || { total: 0, count: 0 })
-    : (reportData.thisWeek || { total: 0, count: 0 });
+  const maxRevenue = reportData.dailyBreakdown.length > 0
+    ? Math.max(...reportData.dailyBreakdown.map(d => d.revenue))
+    : 0;
 
   return (
     <>
@@ -77,86 +60,50 @@ export default function ShopkeeperReports() {
 </section>
 
 <section className="bg-surface-container-lowest rounded-xl p-lg shadow-sm border border-border-gray">
-<div className="flex flex-wrap justify-between items-end gap-3 mb-lg">
+<div className="flex justify-between items-end mb-lg">
 <div>
-<h2 className="font-title-md text-title-md text-on-surface font-bold">Revenue Trends</h2>
-<p className="font-body-md text-body-md text-on-surface-variant">
-  {activeTab === 'Daily' ? 'Today' : activeTab === 'Monthly' ? 'This month' : 'Last 7 days'} performance
-</p>
+<h2 className="font-title-md text-title-md text-on-surface">Revenue Trends</h2>
+<p className="font-body-md text-body-md text-on-surface-variant">Last 7 days performance</p>
 </div>
 <div className="text-right">
-<span className="font-display-lg text-display-lg text-marketplace-orange font-bold">
-  ₹{parseFloat(activeStat.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-</span>
+<span className="font-display-lg text-display-lg text-marketplace-orange">₹{parseFloat(reportData.thisWeek?.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
 <p className="font-label-sm text-label-sm text-success-green flex items-center justify-end gap-1">
-<span className="material-symbols-outlined text-sm">trending_up</span> {activeStat.count || 0} Orders
-</p>
+<span className="material-symbols-outlined text-sm">trending_up</span> {reportData.thisWeek?.count || 0} Orders
+                    </p>
 </div>
 </div>
 
-{/* Responsive Chart Area */}
-<div className="relative h-60 sm:h-72 w-full pt-8 pb-2">
+<div className="relative h-64 flex items-end justify-between gap-2 px-sm">
 
-{/* Background Guidelines */}
-<div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-15 pb-8 pt-4">
-  <div className="border-b border-dashed border-on-surface w-full flex justify-between">
-    <span className="text-[10px] text-on-surface font-mono -mt-2">₹{maxRevenue > 0 ? Number(maxRevenue).toLocaleString('en-IN') : '100'}</span>
-  </div>
-  <div className="border-b border-dashed border-on-surface w-full flex justify-between">
-    <span className="text-[10px] text-on-surface font-mono -mt-2">₹{maxRevenue > 0 ? Number(Math.round(maxRevenue / 2)).toLocaleString('en-IN') : '50'}</span>
-  </div>
-  <div className="border-b border-dashed border-on-surface w-full"></div>
-  <div className="border-b border-solid border-on-surface w-full flex justify-between">
-    <span className="text-[10px] text-on-surface font-mono -mt-2">₹0</span>
-  </div>
+<div className="absolute left-0 top-0 h-full w-full flex flex-col justify-between pointer-events-none opacity-10">
+<div className="border-t border-on-surface w-full"></div>
+<div className="border-t border-on-surface w-full"></div>
+<div className="border-t border-on-surface w-full"></div>
+<div className="border-t border-on-surface w-full"></div>
 </div>
 
-{/* Responsive Bars */}
-<div className="relative h-full w-full flex items-end justify-between gap-1 sm:gap-3 px-1 sm:px-3 z-10">
-{chartDays.map((day, idx) => {
-  const rev = Number(day.revenue) || 0;
+{reportData.dailyBreakdown.map((day, idx) => {
   const barHeight = maxRevenue > 0
-    ? Math.max(8, Math.round((rev / maxRevenue) * 100))
-    : 8;
-  const isToday = idx === chartDays.length - 1;
-  const hasRevenue = rev > 0;
-
+    ? Math.max(10, Math.round((day.revenue / maxRevenue) * 100))
+    : 10;
+  const isToday = idx === reportData.dailyBreakdown.length - 1;
   return (
-    <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center group relative min-w-0">
-      {/* Tooltip Popup on Hover / Tap */}
-      <div className="opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none absolute -top-12 z-30 bg-slate-900 text-white text-[11px] py-1 px-2.5 rounded-lg shadow-xl whitespace-nowrap flex flex-col items-center">
-        <span className="font-bold text-amber-400">₹{rev.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
-        <span className="text-slate-300 text-[10px]">{day.orders || 0} order{(day.orders || 0) === 1 ? '' : 's'}</span>
-      </div>
-
-      {/* Bar Track & Fill */}
-      <div className="w-full flex-1 flex items-end justify-center pb-2">
-        <div 
-          className={`w-full max-w-[28px] sm:max-w-[40px] md:max-w-[52px] rounded-t-md sm:rounded-t-lg transition-all duration-500 shadow-sm ${
-            isToday 
-              ? 'bg-gradient-to-t from-marketplace-orange to-amber-500 shadow-md ring-2 ring-marketplace-orange/30' 
-              : hasRevenue 
-              ? 'bg-gradient-to-t from-marketplace-orange/85 to-amber-500/85 group-hover:brightness-110 shadow-sm'
-              : 'bg-marketplace-orange/20 group-hover:bg-marketplace-orange/35'
-          }`}
-          style={{ height: `${barHeight}%` }}
-        />
-      </div>
-
-      {/* Day Label */}
-      <span className={`text-[10px] sm:text-xs font-semibold tracking-wider uppercase transition-colors pt-1 ${
-        isToday 
-          ? 'text-marketplace-orange font-bold' 
-          : hasRevenue
-          ? 'text-on-surface font-semibold'
-          : 'text-slate-400 group-hover:text-slate-600'
-      }`}>
+    <div key={idx} className="flex-1 flex flex-col items-center group">
+      <div 
+        className={`chart-bar w-full max-w-[40px] rounded-t-lg transition-all ${
+          isToday 
+            ? 'bg-marketplace-orange shadow-lg' 
+            : 'bg-surface-container-high group-hover:bg-surface-container-highest'
+        }`}
+        style={{ height: `${barHeight}%` }}
+        title={`₹${day.revenue} (${day.orders} orders)`}
+      ></div>
+      <span className={`mt-xs font-label-sm text-label-sm ${isToday ? 'text-marketplace-orange font-bold' : 'text-on-surface-variant'}`}>
         {day.label}
       </span>
     </div>
   );
 })}
-</div>
 </div>
 </section>
 
@@ -175,14 +122,7 @@ export default function ShopkeeperReports() {
 </tr>
 </thead>
 <tbody className="divide-y divide-border-gray">
-{products.length === 0 ? (
-<tr>
-  <td colSpan="3" className="px-md py-lg text-center text-on-surface-variant font-body-md text-sm">
-    No sales recorded yet. Top selling products will appear here once orders are placed.
-  </td>
-</tr>
-) : (
-products.map(product => (
+{products.map(product => (
 <tr key={product.id} className="hover:bg-surface-slate transition-colors">
 <td className="px-md py-md flex items-center gap-md">
 <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center">
@@ -196,7 +136,7 @@ products.map(product => (
 <td className="px-md py-md text-right font-body-md">{product.sold}</td>
 <td className="px-md py-md text-right font-body-md font-semibold">{product.revenue}</td>
 </tr>
-)))}
+))}
 </tbody>
 </table>
 </div>

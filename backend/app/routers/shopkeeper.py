@@ -1388,178 +1388,129 @@ async def bulk_add_products(
     }
 
 
-def _parse_dt(val):
-    if val is None:
-        return None
-    if isinstance(val, datetime):
-        return val if val.tzinfo is not None else val.replace(tzinfo=timezone.utc)
-    if isinstance(val, (int, float)):
-        try:
-            if val > 1e11:
-                val = val / 1000.0
-            return datetime.fromtimestamp(val, tz=timezone.utc)
-        except Exception:
-            return None
-    if isinstance(val, str):
-        try:
-            val_clean = val.replace("Z", "+00:00")
-            dt = datetime.fromisoformat(val_clean)
-            return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
-        except Exception:
-            for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-                try:
-                    return datetime.strptime(val.split("+")[0].split(".")[0], fmt).replace(tzinfo=timezone.utc)
-                except Exception:
-                    pass
-    return None
-
 # ─── GET /shopkeeper/reports ──────────────────────────────────────────────────
 
 @router.get("/reports")
 async def shopkeeper_reports(current_user: dict = Depends(require_shopkeeper)):
+    db = get_db()
+    shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
+    if not shop_id_str:
+        return {"success": True, "today": {"total": 0, "count": 0}, "thisWeek": {"total": 0, "count": 0}, "thisMonth": {"total": 0, "count": 0}, "dailyBreakdown": []}
+
+    shop_id_str = str(shop_id_str)
+    
+    orders_ref = db.collection("orders").where("shopId", "==", shop_id_str).stream()
+    all_orders = list(orders_ref)
+
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
 
-    # Prepare default 7-day breakdown structure
-    default_breakdown = []
+    def _get_stats(orders_list, start_time):
+        total = 0.0
+        count = 0
+        for doc in orders_list:
+            o = doc.to_dict()
+            if o.get("orderStatus") == "cancelled":
+                continue
+            created_at = o.get("createdAt")
+            if created_at is None:
+                continue
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            if created_at >= start_time:
+                total += float(o.get("totalAmount", 0.0))
+                count += 1
+        return {"total": total, "count": count}
+
+    today_data = _get_stats(all_orders, today_start)
+    week_data = _get_stats(all_orders, week_start)
+    month_data = _get_stats(all_orders, month_start)
+
+    daily_breakdown = []
     for i in range(6, -1, -1):
         day_start = today_start - timedelta(days=i)
-        default_breakdown.append({
+        day_end = day_start + timedelta(days=1)
+        
+        day_total = 0.0
+        day_count = 0
+        for doc in all_orders:
+            o = doc.to_dict()
+            if o.get("orderStatus") == "cancelled":
+                continue
+            created_at = o.get("createdAt")
+            if created_at is None:
+                continue
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            if day_start <= created_at < day_end:
+                day_total += float(o.get("totalAmount", 0.0))
+                day_count += 1
+                
+        daily_breakdown.append({
             "date": day_start.strftime("%Y-%m-%d"),
             "label": day_start.strftime("%a"),
-            "revenue": 0.0,
-            "orders": 0,
+            "revenue": round(day_total, 2),
+            "orders": day_count,
         })
 
-    shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
-    if not shop_id_str:
-        return {
-            "success": True,
-            "today": {"total": 0.0, "count": 0},
-            "thisWeek": {"total": 0.0, "count": 0},
-            "thisMonth": {"total": 0.0, "count": 0},
-            "dailyBreakdown": default_breakdown
-        }
-
-    try:
-        db = get_db()
-        shop_id_str = str(shop_id_str)
-        orders_ref = db.collection("orders").where("shopId", "==", shop_id_str).stream()
-        all_orders = list(orders_ref)
-
-        def _get_stats(orders_list, start_time):
-            total = 0.0
-            count = 0
-            for doc in orders_list:
-                o = doc.to_dict() if hasattr(doc, "to_dict") else dict(doc)
-                if o.get("orderStatus") == "cancelled":
-                    continue
-                created_at = _parse_dt(o.get("createdAt"))
-                if created_at is None:
-                    continue
-                if created_at >= start_time:
-                    total += float(o.get("totalAmount", 0.0))
-                    count += 1
-            return {"total": total, "count": count}
-
-        today_data = _get_stats(all_orders, today_start)
-        week_data = _get_stats(all_orders, week_start)
-        month_data = _get_stats(all_orders, month_start)
-
-        daily_breakdown = []
-        for i in range(6, -1, -1):
-            day_start = today_start - timedelta(days=i)
-            day_end = day_start + timedelta(days=1)
-            
-            day_total = 0.0
-            day_count = 0
-            for doc in all_orders:
-                o = doc.to_dict() if hasattr(doc, "to_dict") else dict(doc)
-                if o.get("orderStatus") == "cancelled":
-                    continue
-                created_at = _parse_dt(o.get("createdAt"))
-                if created_at is None:
-                    continue
-                if day_start <= created_at < day_end:
-                    day_total += float(o.get("totalAmount", 0.0))
-                    day_count += 1
-                    
-            daily_breakdown.append({
-                "date": day_start.strftime("%Y-%m-%d"),
-                "label": day_start.strftime("%a"),
-                "revenue": round(day_total, 2),
-                "orders": day_count,
-            })
-
-        return {
-            "success": True,
-            "today": {"total": round(today_data["total"], 2), "count": today_data["count"]},
-            "thisWeek": {"total": round(week_data["total"], 2), "count": week_data["count"]},
-            "thisMonth": {"total": round(month_data["total"], 2), "count": month_data["count"]},
-            "dailyBreakdown": daily_breakdown,
-        }
-    except Exception as e:
-        print(f"[shopkeeper_reports] Error calculating reports: {e}")
-        return {
-            "success": True,
-            "today": {"total": 0.0, "count": 0},
-            "thisWeek": {"total": 0.0, "count": 0},
-            "thisMonth": {"total": 0.0, "count": 0},
-            "dailyBreakdown": default_breakdown,
-        }
+    return {
+        "success": True,
+        "today": {"total": round(today_data["total"], 2), "count": today_data["count"]},
+        "thisWeek": {"total": round(week_data["total"], 2), "count": week_data["count"]},
+        "thisMonth": {"total": round(month_data["total"], 2), "count": month_data["count"]},
+        "dailyBreakdown": daily_breakdown,
+    }
 
 
 # ─── GET /shopkeeper/reports/top-products ─────────────────────────────────────
 
 @router.get("/reports/top-products")
 async def get_top_products(current_user: dict = Depends(require_shopkeeper)):
-    try:
-        db = get_db()
-        shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
-        if not shop_id_str:
-            return {"success": True, "products": []}
-        
-        shop_id_str = str(shop_id_str)
-        orders_ref = db.collection("orders").where("shopId", "==", shop_id_str).stream()
-        
-        product_sales = {}
-        for doc in orders_ref:
-            o = doc.to_dict() if hasattr(doc, "to_dict") else dict(doc)
-            if o.get("orderStatus") == "cancelled":
-                continue
-            items = o.get("items", [])
-            for item in items:
-                p_id = item.get("productId") or item.get("id")
-                if not p_id:
-                    continue
-                name = item.get("name", "Unknown Product")
-                qty = int(item.get("quantity", 0))
-                price = float(item.get("price", 0.0))
-                
-                if p_id not in product_sales:
-                    product_sales[p_id] = {
-                        "id": p_id,
-                        "name": name,
-                        "category": item.get("category", "General"),
-                        "sold": 0,
-                        "revenue": 0.0,
-                        "icon": "shopping_bag"
-                    }
-                product_sales[p_id]["sold"] += qty
-                product_sales[p_id]["revenue"] += qty * price
-                
-        top_products = list(product_sales.values())
-        top_products.sort(key=lambda x: x["sold"], reverse=True)
-        
-        for p in top_products:
-            p["revenue"] = f"₹{round(p['revenue'], 2):.2f}"
-            
-        return {"success": True, "products": top_products[:5]}
-    except Exception as e:
-        print(f"[get_top_products] Error: {e}")
+    db = get_db()
+    shop_id_str = current_user.get("activeShopId") or current_user.get("shop_id")
+    if not shop_id_str:
         return {"success": True, "products": []}
+    
+    shop_id_str = str(shop_id_str)
+    orders_ref = db.collection("orders").where("shopId", "==", shop_id_str).stream()
+    
+    product_sales = {}
+    for doc in orders_ref:
+        o = doc.to_dict()
+        if o.get("orderStatus") == "cancelled":
+            continue
+        items = o.get("items", [])
+        for item in items:
+            p_id = item.get("productId")
+            if not p_id:
+                continue
+            name = item.get("name", "Unknown Product")
+            qty = int(item.get("quantity", 0))
+            price = float(item.get("price", 0.0))
+            
+            if p_id not in product_sales:
+                product_sales[p_id] = {
+                    "id": p_id,
+                    "name": name,
+                    "category": item.get("category", "General"),
+                    "sold": 0,
+                    "revenue": 0.0,
+                    "icon": "shopping_bag"
+                }
+            product_sales[p_id]["sold"] += qty
+            product_sales[p_id]["revenue"] += qty * price
+            
+    # Sort by quantity sold descending
+    top_products = list(product_sales.values())
+    top_products.sort(key=lambda x: x["sold"], reverse=True)
+    
+    # Format currency/fields
+    for p in top_products:
+        p["revenue"] = f"₹{round(p['revenue'], 2):.2f}"
+        
+    return {"success": True, "products": top_products[:5]}
 
 
 # ─── GET /shopkeeper/invoices ─────────────────────────────────────────────────
